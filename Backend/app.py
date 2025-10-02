@@ -5,7 +5,7 @@ Backend FastAPI - Versão corrigida
 
 from fastapi import FastAPI, File, UploadFile, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 import uvicorn
 import os
 import uuid
@@ -17,6 +17,7 @@ from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.sql import func
 from PIL import Image, ImageOps
 import io
+from services.ai_service import AIService
 
 # Configurações básicas
 BASE_DIR = Path(__file__).parent
@@ -68,6 +69,9 @@ def get_db():
     finally:
         db.close()
 
+# Instância do serviço de IA
+ai_service = AIService()
+
 # Criação da instância FastAPI
 app = FastAPI(
     title="Plataforma de Análise de IAs Generativas para Mamografias",
@@ -80,7 +84,7 @@ app = FastAPI(
 # Configuração de CORS para permitir requisições do frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:8080"],  # URLs do frontend Vue.js
+    allow_origins=["http://localhost:3000", "http://localhost:8080", "http://localhost:5173"],  # URLs do frontend Vue.js
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -113,6 +117,19 @@ async def health_check():
             "results": RESULTS_DIR
         }
     }
+
+# Endpoint para servir imagens
+@app.get("/uploads/{filename}")
+async def get_image(filename: str):
+    """
+    Endpoint para servir imagens enviadas
+    """
+    file_path = os.path.join(UPLOAD_DIR, filename)
+    
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Imagem não encontrada")
+    
+    return FileResponse(file_path, media_type="image/jpeg")
 
 # Endpoint de upload com banco de dados
 @app.post("/api/v1/upload")
@@ -217,6 +234,37 @@ async def list_uploads(skip: int = 0, limit: int = 10, db: Session = Depends(get
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao listar uploads: {str(e)}")
 
+# Endpoint para listar todas as análises
+@app.get("/api/v1/analyses")
+async def list_analyses(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
+    """
+    Listar todas as análises do banco de dados
+    """
+    try:
+        analyses = db.query(Analysis).offset(skip).limit(limit).all()
+        
+        return {
+            "analyses": [
+                {
+                    "id": analysis.id,
+                    "filename": analysis.filename,
+                    "original_filename": analysis.original_filename,
+                    "file_size": analysis.file_size,
+                    "upload_date": analysis.upload_date,
+                    "processing_date": analysis.processing_date,
+                    "status": analysis.processing_status,
+                    "is_processed": analysis.is_processed,
+                    "has_analysis": bool(analysis.gemini_analysis),
+                    "error_message": analysis.error_message
+                }
+                for analysis in analyses
+            ],
+            "count": len(analyses)
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao listar análises: {str(e)}")
+
 # Endpoint para obter detalhes de uma análise
 @app.get("/api/v1/analysis/{analysis_id}")
 async def get_analysis(analysis_id: int, db: Session = Depends(get_db)):
@@ -247,11 +295,12 @@ async def get_analysis(analysis_id: int, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Erro ao obter análise: {str(e)}")
 
-# Endpoint de análise básico (preparado para IA)
+# Endpoint de análise com IA
+
 @app.post("/api/v1/analyze/{analysis_id}")
 async def analyze_mammography(analysis_id: int, db: Session = Depends(get_db)):
     """
-    Endpoint para análise de mamografia (preparado para IA)
+    Endpoint para análise de mamografia com IA (Gemini)
     """
     try:
         analysis = db.query(Analysis).filter(Analysis.id == analysis_id).first()
@@ -267,17 +316,117 @@ async def analyze_mammography(analysis_id: int, db: Session = Depends(get_db)):
         analysis.processing_date = datetime.utcnow()
         db.commit()
         
-        # Por enquanto, retorna uma análise simulada
-        return {
-            "message": "Análise iniciada",
-            "analysis_id": analysis_id,
-            "filename": analysis.filename,
-            "status": "processing",
-            "note": "Funcionalidade de IA será implementada quando as chaves de API forem configuradas"
-        }
+        # Fazer análise com Gemini
+        gemini_result = ai_service.analyze_mammography(analysis.file_path)
         
+        if gemini_result["success"]:
+            # Salvar resultado no banco
+            analysis.gemini_analysis = gemini_result["analysis"]
+            analysis.processing_status = "completed"
+            analysis.is_processed = True
+            db.commit()
+            
+            return {
+                "message": "Análise concluída com sucesso",
+                "analysis_id": analysis_id,
+                "filename": analysis.filename,
+                "status": "completed",
+                "model": gemini_result["model"],
+                "analysis": gemini_result["analysis"]
+            }
+        else:
+            # Se Gemini falhar, tentar Hugging Face
+            hf_result = ai_service.analyze_with_huggingface(analysis.file_path)
+            
+            if hf_result["success"]:
+                analysis.gemini_analysis = hf_result["analysis"]
+                analysis.processing_status = "completed"
+                analysis.is_processed = True
+                db.commit()
+                
+                return {
+                    "message": "Análise concluída com Hugging Face",
+                    "analysis_id": analysis_id,
+                    "filename": analysis.filename,
+                    "status": "completed",
+                    "model": hf_result["model"],
+                    "analysis": hf_result["analysis"]
+                }
+            else:
+                # Se ambos falharem
+                analysis.processing_status = "error"
+                analysis.error_message = f"Gemini: {gemini_result['error']} | HF: {hf_result['error']}"
+                db.commit()
+                
+                raise HTTPException(
+                    status_code=500, 
+                    detail=f"Erro na análise: {gemini_result['error']}"
+                )
+        
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Erro na análise: {str(e)}")
+        # Atualizar status de erro
+        analysis.processing_status = "error"
+        analysis.error_message = str(e)
+        db.commit()
+        raise HTTPException(status_code=500, detail=f"Erro na análise: {str(e)}")
+
+# Endpoint alternativo para Hugging Face
+@app.post("/api/v1/analyze-huggingface/{analysis_id}")
+async def analyze_mammography_hf(analysis_id: int, db: Session = Depends(get_db)):
+    """
+    Endpoint para análise de mamografia com Hugging Face
+    """
+    try:
+        analysis = db.query(Analysis).filter(Analysis.id == analysis_id).first()
+        
+        if not analysis:
+            raise HTTPException(status_code=404, detail="Análise não encontrada")
+        
+        if not os.path.exists(analysis.file_path):
+            raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+        
+        # Atualizar status para processando
+        analysis.processing_status = "processing"
+        analysis.processing_date = datetime.utcnow()
+        db.commit()
+        
+        # Fazer análise com Hugging Face
+        hf_result = ai_service.analyze_with_huggingface(analysis.file_path)
+        
+        if hf_result["success"]:
+            # Salvar resultado no banco
+            analysis.gemini_analysis = hf_result["analysis"]  # Usando o mesmo campo por simplicidade
+            analysis.processing_status = "completed"
+            analysis.is_processed = True
+            db.commit()
+            
+            return {
+                "message": "Análise concluída com Hugging Face",
+                "analysis_id": analysis_id,
+                "filename": analysis.filename,
+                "status": "completed",
+                "model": hf_result["model"],
+                "analysis": hf_result["analysis"]
+            }
+        else:
+            analysis.processing_status = "error"
+            analysis.error_message = hf_result["error"]
+            db.commit()
+            
+            raise HTTPException(
+                status_code=500, 
+                detail=f"Erro na análise: {hf_result['error']}"
+            )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        analysis.processing_status = "error"
+        analysis.error_message = str(e)
+        db.commit()
+        raise HTTPException(status_code=500, detail=f"Erro na análise: {str(e)}")
 
 def validate_and_process_image(file_content: bytes, filename: str) -> dict:
     """
@@ -331,8 +480,17 @@ def validate_and_process_image(file_content: bytes, filename: str) -> dict:
 
     # Otimizações para análise
     image = ImageOps.autocontrast(image)
+    
+    # Ajustar brilho e contraste para melhor análise
+    from PIL import ImageEnhance
+    enhancer = ImageEnhance.Contrast(image)
+    image = enhancer.enhance(1.2)  # Aumentar contraste em 20%
+    
+    enhancer = ImageEnhance.Brightness(image)
+    image = enhancer.enhance(1.1)  # Aumentar brilho em 10%
 
-    max_size = (1024, 1024)
+    # Resolução otimizada para análise de IA (maior que antes)
+    max_size = (2048, 2048)  # Aumentado de 1024x1024 para 2048x2048
     if width > max_size[0] or height > max_size[1]:
         image.thumbnail(max_size, Image.Resampling.LANCZOS)
         width, height = image.size

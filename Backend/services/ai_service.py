@@ -35,34 +35,50 @@ class AIService:
             genai.configure(api_key=self.gemini_api_key)
             
             # Configurar o modelo
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            model = genai.GenerativeModel('gemini-2.0-flash')
             
-            # Prompt otimizado para análise técnica
+            # Prompt otimizado para análise técnica detalhada
             prompt = """
-            Você é um especialista em análise de imagens médicas. Analise esta imagem de mamografia e forneça:
+            Analise esta imagem de mamografia e forneça uma análise técnica detalhada em português brasileiro.
 
-            1. **Qualidade da Imagem:**
-               - Resolução e clareza
-               - Contraste e brilho
-               - Nitidez dos detalhes
+            ESTRUTURA DA ANÁLISE:
 
-            2. **Características Técnicas:**
-               - Densidade do tecido mamário
-               - Simetria das mamas
+            1. **QUALIDADE TÉCNICA DA IMAGEM:**
+               - Resolução e nitidez geral
+               - Contraste e brilho adequados
+               - Presença de artefatos ou ruídos
+               - Qualidade da exposição
+
+            2. **ANATOMIA VISÍVEL:**
+               - Estruturas anatômicas identificáveis
+               - Simetria entre as mamas
+               - Posicionamento da imagem
+               - Área de cobertura
+
+            3. **CARACTERÍSTICAS DO TECIDO:**
+               - Densidade do tecido mamário observável
+               - Padrões de textura visíveis
+               - Distribuição do tecido
+               - Presença de estruturas normais
+
+            4. **ASPECTOS TÉCNICOS:**
                - Qualidade da técnica de imagem
+               - Adequação para análise
+               - Limitações técnicas identificadas
 
-            3. **Observações Gerais:**
-               - Qualquer característica visível
-               - Padrões de tecido
-               - Qualidade geral da imagem
+            5. **OBSERVAÇÕES GERAIS:**
+               - Características notáveis da imagem
+               - Qualidade geral para fins de análise
+               - Recomendações técnicas (se aplicável)
 
-            **IMPORTANTE:** 
+            FORMATO DE RESPOSTA:
+            - Use linguagem técnica mas acessível
+            - Seja específico e detalhado
             - NÃO forneça diagnóstico médico
-            - Foque apenas em características técnicas visíveis
-            - Use linguagem técnica apropriada
-            - Responda em formato JSON estruturado
+            - Foque em aspectos técnicos e visuais
+            - Use parágrafos curtos e organizados
 
-            Responda em português brasileiro.
+            IMPORTANTE: Esta é uma análise técnica de imagem, não um diagnóstico médico.
             """
             
             # Carregar e processar a imagem
@@ -125,7 +141,7 @@ class AIService:
                             headers=headers,
                             files=files,
                             data=data,
-                            timeout=30
+                            timeout=120  # 2 minutos para análise
                         )
                     
                     if response.status_code == 200:
@@ -139,6 +155,9 @@ class AIService:
                     
                 except Exception as e:
                     print(f"Erro com modelo {model}: {str(e)}")
+                    # Se for timeout, tentar próximo modelo
+                    if "timeout" in str(e).lower() or "timed out" in str(e).lower():
+                        print(f"Timeout com {model}, tentando próximo modelo...")
                     continue
             
             # Se todos os modelos falharam, retornar resposta local

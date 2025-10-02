@@ -1,209 +1,259 @@
-# 🏥 Plataforma de Análise de IAs Generativas para Mamografias
+# 🏥 Plataforma de Análise de Mamografias com IA
 
-## 📋 O que é este projeto?
+<div align="center">
 
-Esta é uma **API REST básica** desenvolvida em **FastAPI** que permite:
+![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)
+![Vue.js](https://img.shields.io/badge/Vue.js-3.4+-4FC08D.svg)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6.svg)
+![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-1. **Upload de imagens de mamografia** (PNG, JPG)
-2. **Armazenamento local** de imagens enviadas
-3. **Listagem** de uploads realizados
-4. **API documentada** com interface Swagger
+**Sistema completo para análise inteligente de imagens de mamografia utilizando múltiplas APIs de IA**
 
-### 🎯 Objetivo
-Criar a base para uma ferramenta de análise de mamografias. Esta versão inicial foca no upload e armazenamento de imagens, preparando a estrutura para futuras integrações com IA.
+[🚀 Instalação](#-instalação) • [🔧 Configuração](#-configuração) • [🎯 Funcionalidades](#-funcionalidades) • [📖 Documentação](#-documentação)
 
-## 🚀 Como executar a aplicação
-
-### 1. **Instalar dependências** (apenas uma vez)
-```bash
-# Executar o script de instalação
-./install_system_packages.sh
-```
-
-### 2. **Executar a aplicação**
-```bash
-# Iniciar o servidor
-python3 app.py
-```
-
-### 3. **Acessar a aplicação**
-- **API**: http://localhost:8000
-- **Documentação interativa**: http://localhost:8000/docs
-- **Status da API**: http://localhost:8000/health
-
-## 📁 Estrutura do projeto
-
-```
-Backend/
-├── app.py                    # 🚀 Arquivo principal da aplicação
-├── install_system_packages.sh # 📦 Script de instalação
-├── requirements.txt          # 📋 Lista de dependências
-├── env.example              # ⚙️ Exemplo de configuração
-├── mamografia_analysis.db   # 🗄️ Banco de dados (não usado atualmente)
-├── uploads/                 # 📁 Imagens enviadas
-└── results/                 # 📁 Resultados (preparado para futuro)
-```
-
-## 🔌 Endpoints da API
-
-### 📤 **Upload de Imagens**
-```bash
-POST /api/v1/upload
-```
-- **Função**: Enviar imagem de mamografia
-- **Formato**: multipart/form-data
-- **Tipos aceitos**: PNG, JPG
-
-### 📋 **Listar Uploads**
-```bash
-GET /api/v1/uploads
-```
-- **Função**: Ver todas as imagens enviadas
-- **Retorna**: Lista com informações dos arquivos
-
-### 🔍 **Análise de Mamografia**
-```bash
-POST /api/v1/analyze/{filename}
-```
-- **Função**: Endpoint preparado para análise com IA
-- **Status**: Retorna mensagem informativa (IA não implementada ainda)
-
-### 🏥 **Status da API**
-```bash
-GET /health
-```
-- **Função**: Verificar se a API está funcionando
-
-## 🧪 Como testar
-
-### **Método 1: Interface Web (Recomendado)**
-1. Acesse http://localhost:8000/docs
-2. Clique em `POST /api/v1/upload`
-3. Clique em "Try it out"
-4. Selecione uma imagem
-5. Clique em "Execute"
-
-### **Método 2: cURL**
-```bash
-# Upload de imagem
-curl -X POST "http://localhost:8000/api/v1/upload" \
-     -H "Content-Type: multipart/form-data" \
-     -F "file=@sua_imagem.png"
-
-# Listar uploads
-curl http://localhost:8000/api/v1/uploads
-
-# Verificar status
-curl http://localhost:8000/health
-```
-
-## ⚙️ Configuração (Futuro)
-
-### **Configurar APIs de IA** (Não implementado ainda)
-Para futuras integrações com IA:
-
-1. **Copiar arquivo de configuração**:
-```bash
-cp env.example .env
-```
-
-2. **Editar arquivo .env** (quando implementado):
-```env
-# Obter em: https://platform.openai.com/api-keys
-OPENAI_API_KEY=sua_chave_openai_aqui
-
-# Obter em: https://makersuite.google.com/app/apikey
-GEMINI_API_KEY=sua_chave_gemini_aqui
-```
-
-## 🛠️ Tecnologias utilizadas
-
-- **FastAPI**: Framework web moderno e rápido
-- **Uvicorn**: Servidor ASGI
-- **Python**: Linguagem de programação
-- **JSON**: Formato de dados da API
-
-### 🔮 **Tecnologias planejadas** (futuras versões)
-- **SQLAlchemy**: ORM para banco de dados
-- **SQLite**: Banco de dados local
-- **Pillow**: Processamento de imagens
-- **Pydantic**: Validação de dados
-- **Google Generative AI**: API do Gemini
-- **OpenAI**: API do GPT-4V
-
-## 📊 Funcionalidades implementadas
-
-### ✅ **Funcionando agora**
-- Upload de imagens de mamografia
-- Validação básica de tipos de arquivo
-- Armazenamento local de imagens
-- API REST documentada
-- Interface Swagger para testes
-- Listagem de uploads realizados
-
-### 🔄 **Preparado para implementar**
-- Análise com Gemini Vision
-- Análise com GPT-4V
-- Comparação de resultados
-- Processamento em background
-- Banco de dados SQLite
-- Validação avançada de imagens
-
-## 🐛 Solução de problemas
-
-### **Erro: "externally-managed-environment"**
-✅ **Resolvido** - Use o script `install_system_packages.sh`
-
-### **Erro: "Module not found"**
-```bash
-# Reinstalar dependências
-sudo apt update
-sudo apt install python3-fastapi python3-uvicorn python3-pil python3-sqlalchemy
-```
-
-### **Porta 8000 em uso**
-```bash
-# Verificar processos
-sudo lsof -i :8000
-
-# Parar processo
-sudo kill -9 PID_DO_PROCESSO
-```
-
-### **Aplicação não inicia**
-```bash
-# Verificar se está no diretório correto
-pwd
-# Deve mostrar: /caminho/para/Backend
-
-# Verificar se app.py existe
-ls -la app.py
-```
-
-## 🎯 Próximos passos
-
-1. **Testar upload** de imagens via Swagger UI
-2. **Configurar chaves de API** para análise com IA
-3. **Desenvolver frontend** Vue.js
-4. **Implementar análise** com Gemini e GPT-4V
-5. **Adicionar autenticação** e segurança
-
-## 📞 Suporte
-
-Se encontrar problemas:
-
-1. **Verifique os logs** do servidor
-2. **Teste endpoints básicos** primeiro
-3. **Confirme dependências** instaladas
-4. **Verifique permissões** de arquivo
+</div>
 
 ---
 
-## 🎉 **Resumo**
+## 📋 Sobre o Projeto
 
-Esta é uma **API REST básica** para upload de mamografias. A aplicação está **funcionando** e pronta para receber imagens. É a base para futuras implementações de análise com IA.
+Plataforma web completa que permite analisar imagens de mamografia utilizando **Inteligência Artificial**. O sistema integra múltiplas APIs de IA (Google Gemini e Hugging Face) para fornecer análises técnicas detalhadas e comparativas.
 
-**Versão atual**: MVP com upload e armazenamento
-**Próxima versão**: Integração com APIs de IA
+### 🎯 Objetivos
+- **Análise Inteligente**: Processamento de imagens de mamografia com IA
+- **Comparação de Modelos**: Múltiplas APIs para análise comparativa
+- **Interface Intuitiva**: Frontend moderno e responsivo
+- **Armazenamento Seguro**: Banco de dados para histórico de análises
 
-**Acesse agora**: http://localhost:8000/docs e comece a testar! 🚀
+### 👥 Equipe
+- **Felipe Nascimento da Silva** - Desenvolvimento Full-Stack
+- **Enzo Carvalho Mattiotti dos Reis** - Desenvolvimento Backend
+- **João Pedro Carvalho** - Desenvolvimento Frontend
+
+---
+
+## 🚀 Instalação
+
+### **Opção 1: Instalação Automática (Recomendado)**
+
+```bash
+# Baixar e executar script de instalação
+curl -O https://raw.githubusercontent.com/Felipensct/mamografia-ia-analysis/main/install_rocky_linux.sh
+chmod +x install_rocky_linux.sh
+./install_rocky_linux.sh
+
+# Configurar chaves de API
+sudo nano /home/mamografia/mamografia-ia-analysis/Backend/.env
+
+# Iniciar serviços
+mamografia start
+```
+
+### **Opção 2: Instalação Manual**
+
+```bash
+# 1. Clonar repositório
+git clone https://github.com/Felipensct/mamografia-ia-analysis.git
+cd mamografia-ia-analysis
+
+# 2. Backend
+cd Backend
+pip3 install -r requirements.txt
+cp env.example .env
+# Editar .env com suas chaves de API
+python3 app.py
+
+# 3. Frontend (novo terminal)
+cd frontend
+npm install
+npm run dev
+```
+
+### **Opção 3: Docker**
+
+```bash
+# Clonar e configurar
+git clone https://github.com/Felipensct/mamografia-ia-analysis.git
+cd mamografia-ia-analysis
+cp env.example .env
+# Editar .env com suas chaves
+
+# Executar com Docker
+docker-compose up -d
+```
+
+---
+
+## 🔧 Configuração
+
+### **Chaves de API Necessárias**
+
+1. **Google Gemini**: https://makersuite.google.com/app/apikey
+2. **Hugging Face**: https://huggingface.co/settings/tokens
+
+### **Arquivo .env**
+
+```env
+# Chaves de API (OBRIGATÓRIO)
+GEMINI_API_KEY=your_gemini_api_key_here
+HUGGINGFACE_API_KEY=your_huggingface_api_key_here
+
+# Configurações do Backend
+BACKEND_HOST=0.0.0.0
+BACKEND_PORT=8000
+
+# Configurações do Frontend
+VITE_API_URL=http://localhost:8000
+```
+
+---
+
+## 🎯 Funcionalidades
+
+### ✅ **Backend (FastAPI)**
+- **Upload de Imagens**: Validação e processamento de imagens de mamografia
+- **Integração IA**: Google Gemini + Hugging Face com fallback automático
+- **Banco de Dados**: SQLite com SQLAlchemy ORM
+- **API REST**: Endpoints documentados com Swagger UI
+- **Processamento**: Otimização de imagens (resolução, contraste, brilho)
+
+### ✅ **Frontend (Vue.js)**
+- **Interface Moderna**: Design responsivo e intuitivo
+- **Upload Drag & Drop**: Interface amigável para envio de imagens
+- **Dashboard Interativo**: Estatísticas e visualizações em tempo real
+- **Lista de Análises**: Histórico completo com filtros e busca
+- **Visualização de Resultados**: Exibição detalhada das análises de IA
+
+### ✅ **Integração IA**
+- **Google Gemini**: Análise técnica detalhada com prompt otimizado
+- **Hugging Face**: Fallback automático para modelos alternativos
+- **Processamento Inteligente**: Otimização de imagens para melhor análise
+- **Status Tracking**: Acompanhamento em tempo real do processamento
+
+---
+
+## 🔌 API Endpoints
+
+### **Upload e Gerenciamento**
+- `POST /api/v1/upload` - Upload de imagem de mamografia
+- `GET /api/v1/analyses` - Listar todas as análises
+- `GET /api/v1/analysis/{id}` - Detalhes de uma análise específica
+
+### **Análise com IA**
+- `POST /api/v1/analyze/{id}` - Análise com Gemini (fallback Hugging Face)
+- `POST /api/v1/analyze-huggingface/{id}` - Análise direta com Hugging Face
+
+### **Utilitários**
+- `GET /health` - Status da API
+- `GET /uploads/{filename}` - Servir imagens enviadas
+- `GET /docs` - Swagger UI interativo
+
+---
+
+## 🚀 Deploy e Produção
+
+### **Comandos de Gerenciamento**
+
+```bash
+# Systemd (após instalação completa)
+mamografia start      # Iniciar serviços
+mamografia stop       # Parar serviços
+mamografia restart    # Reiniciar serviços
+mamografia status     # Ver status
+mamografia logs       # Ver logs
+
+# Docker
+docker-compose up -d        # Iniciar
+docker-compose down         # Parar
+docker-compose logs         # Ver logs
+```
+
+---
+
+## 🧪 Testes
+
+### **Teste Manual**
+1. Acesse http://localhost:5173
+2. Faça upload de uma imagem de mamografia
+3. Execute a análise
+4. Visualize os resultados
+
+### **Teste da API**
+```bash
+# Backend
+cd Backend && python3 test_api.py
+
+# Frontend
+cd frontend && npm run test
+```
+
+---
+
+## 🐛 Solução de Problemas
+
+### **Erro: "Address already in use"**
+```bash
+sudo lsof -ti:8000 | xargs sudo kill -9
+sudo lsof -ti:5173 | xargs sudo kill -9
+```
+
+### **Erro: "API Key not found"**
+```bash
+# Verificar arquivo .env
+ls -la Backend/.env
+cat Backend/.env
+```
+
+### **Erro: "Module not found"**
+```bash
+# Backend
+cd Backend && pip3 install -r requirements.txt
+
+# Frontend
+cd frontend && npm install
+```
+
+---
+
+## 📊 Métricas do Projeto
+
+| Componente | Linhas de Código | Arquivos | Funcionalidades |
+|------------|------------------|----------|-----------------|
+| **Backend** | ~500 | 8 | 7 endpoints |
+| **Frontend** | ~800 | 15 | 4 componentes |
+| **Total** | ~1300 | 23+ | 20+ funcionalidades |
+
+---
+
+## 📖 Documentação
+
+- **Backend API Docs**: http://localhost:8000/docs
+- **Frontend Components**: [./frontend/README.md](./frontend/README.md)
+- **Backend Details**: [./Backend/README.md](./Backend/README.md)
+
+---
+
+## 📞 Suporte
+
+- **Email**: felipe.nascimento@univap.br
+- **GitHub**: [@Felipensct](https://github.com/Felipensct)
+- **Issues**: [GitHub Issues](https://github.com/Felipensct/mamografia-ia-analysis/issues)
+
+---
+
+## 📄 Licença
+
+Este projeto está licenciado sob a [Licença MIT](LICENSE).
+
+---
+
+<div align="center">
+
+**🏆 Projeto desenvolvido para a matéria Projetos IV de Engenharia da Computação**
+
+**Universidade do Vale do Paraíba - 2025**
+
+[⬆ Voltar ao topo](#-plataforma-de-análise-de-mamografias-com-ia)
+
+</div>
