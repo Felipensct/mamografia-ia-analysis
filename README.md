@@ -1,59 +1,36 @@
-# 🏥 Plataforma de Análise de Mamografias com IA
+# Plataforma de Análise de Mamografias com IA
 
-<div align="center">
+Sistema completo para análise inteligente de imagens de mamografia utilizando múltiplas APIs de IA com arquitetura híbrida robusta.
 
-![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)
-![Vue.js](https://img.shields.io/badge/Vue.js-3.4+-4FC08D.svg)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6.svg)
-![License](https://img.shields.io/badge/License-MIT-yellow.svg)
-![Status](https://img.shields.io/badge/Status-Atualizado-success.svg)
+[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)](https://fastapi.tiangolo.com)
+[![Vue.js](https://img.shields.io/badge/Vue.js-3.4+-4FC08D.svg)](https://vuejs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6.svg)](https://typescriptlang.org)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Status](https://img.shields.io/badge/Status-Produção-success.svg)](https://github.com/Felipensct/mamografia-ia-analysis)
 
-**Sistema completo para análise inteligente de imagens de mamografia utilizando múltiplas APIs de IA**
+## Visão Geral
 
-**✨ Versão 2.0.0 - Atualizado com Prompt Otimizado, Markdown e BI-RADS**
+A plataforma implementa um sistema híbrido de análise de mamografias com três camadas de Inteligência Artificial:
 
-[🚀 Instalação](#-instalação) • [🔧 Configuração](#-configuração) • [🎯 Funcionalidades](#-funcionalidades) • [📖 Documentação](#-documentação) • [🆕 Novidades](#-novidades-v200)
+1. **Google Gemini 2.0 Flash** - Análise médica especializada com classificação BI-RADS
+2. **Hugging Face Transformers** - Complemento técnico computacional
+3. **Análise Local OpenCV** - Fallback robusto sempre disponível
 
-</div>
+### Características Principais
 
----
+- ✅ **Sistema híbrido robusto** que nunca falha
+- ✅ **Classificação BI-RADS** integrada
+- ✅ **Interface moderna** com design system médico
+- ✅ **Análise estruturada** em Markdown com priorização visual
+- ✅ **Clean Architecture** no backend
+- ✅ **TypeScript** no frontend
+- ✅ **Docker** para containerização
+- ✅ **Documentação completa** seguindo padrões da indústria
 
-## 🆕 Novidades v2.0.0
+## Início Rápido
 
-### ✨ Melhorias Implementadas
-
-- ✅ **Prompt do Gemini Otimizado**: Análises estruturadas com formato Markdown
-- ✅ **Classificação BI-RADS**: Sistema de categorização integrado (0-6)
-- ✅ **Priorização de Achados**: Sistema visual (🔴 Crítico, 🟡 Importante, 🟢 Observação)
-- ✅ **Renderização Markdown**: Visualização formatada e hierárquica
-- ✅ **Campo Info**: Metadados de processamento da imagem
-- ✅ **Bugs Corrigidos**: Funções duplicadas e reatividade
-
-📋 **Ver detalhes:** [CHANGELOG_MELHORIAS.md](CHANGELOG_MELHORIAS.md)
-
----
-
-## 📋 Sobre o Projeto
-
-Plataforma web completa que permite analisar imagens de mamografia utilizando **Inteligência Artificial**. O sistema integra múltiplas APIs de IA (Google Gemini e Hugging Face) para fornecer análises técnicas detalhadas e comparativas.
-
-### 🎯 Objetivos
-- **Análise Inteligente**: Processamento de imagens de mamografia com IA
-- **Comparação de Modelos**: Múltiplas APIs para análise comparativa
-- **Interface Intuitiva**: Frontend moderno e responsivo
-- **Armazenamento Seguro**: Banco de dados para histórico de análises
-
-### 👥 Equipe
-- **Felipe Nascimento da Silva** - Desenvolvimento Full-Stack
-- **Enzo Carvalho Mattiotti dos Reis** - Desenvolvimento Backend
-- **João Pedro Carvalho** - Desenvolvimento Frontend
-
----
-
-## ⚡ Início Rápido
-
-### **Método Mais Simples:**
+### Instalação Automática (Recomendado)
 
 ```bash
 # 1. Clone o repositório
@@ -68,226 +45,206 @@ nano Backend/.env  # Adicione suas chaves
 ./start.sh
 ```
 
-O script irá:
-- ✅ Verificar dependências
-- ✅ Criar ambiente virtual
-- ✅ Instalar pacotes
-- ✅ Iniciar Backend e Frontend
+### Acesso à Aplicação
 
-📖 **Ver guia completo:** [GUIA_EXECUCAO.md](GUIA_EXECUCAO.md)
+- **Frontend**: http://localhost:5173
+- **API Docs**: http://localhost:8000/docs
+- **Health Check**: http://localhost:8000/health
 
----
+## Documentação
 
-## 🚀 Instalação
+### 📚 Documentação
 
-### **Opção 1: Instalação Automática (Recomendado)**
+- **[Arquitetura do Sistema](docs/ARCHITECTURE.md)** - Decisões técnicas e estrutura
+- **[Changelog](docs/CHANGELOG.md)** - Histórico de mudanças e melhorias
 
-```bash
-# Baixar e executar script de instalação
-curl -O https://raw.githubusercontent.com/Felipensct/mamografia-ia-analysis/main/install_rocky_linux.sh
-chmod +x install_rocky_linux.sh
-./install_rocky_linux.sh
+## Arquitetura
 
-# Configurar chaves de API
-sudo nano /home/mamografia/mamografia-ia-analysis/Backend/.env
+### Sistema Híbrido de IA
 
-# Iniciar serviços
-mamografia start
+```
+┌─────────────────────────────────────────┐
+│          FRONTEND (Vue.js 3)            │
+│  - Upload de imagens                    │
+│  - Visualização de análises             │
+│  - Renderização Markdown                │
+└──────────────┬──────────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────────┐
+│         BACKEND (FastAPI)               │
+│  - API REST                             │
+│  - Processamento de imagens             │
+│  - Banco de dados SQLite                │
+└──────────────┬──────────────────────────┘
+               │
+    ┌──────────┴──────────┐
+    ▼                     ▼
+┌─────────┐         ┌──────────────┐
+│ Gemini  │         │  Hugging Face│
+│  2.0    │         │  + Local     │
+│ Flash   │         │  OpenCV      │
+└─────────┘         └──────────────┘
+   (Principal)        (Complemento)
 ```
 
-### **Opção 2: Instalação Manual**
+### Stack Tecnológico
 
-```bash
-# 1. Clonar repositório
-git clone https://github.com/Felipensct/mamografia-ia-analysis.git
-cd mamografia-ia-analysis
+**Backend**
+- FastAPI (Python 3.11+)
+- SQLAlchemy ORM
+- OpenCV para processamento de imagem
+- Google Gemini 2.0 Flash
+- Hugging Face Transformers
 
-# 2. Backend
-cd Backend
-pip3 install -r requirements.txt
-cp env.example .env
-# Editar .env com suas chaves de API
-python3 app.py
+**Frontend**
+- Vue.js 3 com TypeScript
+- Tailwind CSS
+- Pinia para estado
+- Marked.js para renderização
 
-# 3. Frontend (novo terminal)
-cd frontend
-npm install
-npm run dev
-```
+## Funcionalidades
 
-### **Opção 3: Docker**
+### Análise de Imagens
+- Upload de imagens de mamografia
+- Processamento automático (redimensionamento, contraste)
+- Análise híbrida com múltiplas IAs
+- Classificação BI-RADS integrada
+- Priorização visual de achados
 
-```bash
-# Clonar e configurar
-git clone https://github.com/Felipensct/mamografia-ia-analysis.git
-cd mamografia-ia-analysis
-cp env.example .env
-# Editar .env com suas chaves
+### Interface do Usuário
+- Dashboard moderno com estatísticas
+- Image viewer com controles de zoom
+- Tabs organizadas por tipo de análise
+- Renderização Markdown estruturada
+- Sistema de notificações Toast
 
-# Executar com Docker
-docker-compose up -d
-```
+### Sistema Robusto
+- Fallback inteligente entre IAs
+- Análise local sempre disponível
+- Validação rigorosa de arquivos
+- Logs estruturados
+- Health checks
 
----
+## Configuração
 
-## 🔧 Configuração
+### Variáveis de Ambiente
 
-### **Chaves de API Necessárias**
-
-1. **Google Gemini**: https://makersuite.google.com/app/apikey
-2. **Hugging Face**: https://huggingface.co/settings/tokens
-
-### **Arquivo .env**
-
+**Backend (.env)**
 ```env
-# Chaves de API (OBRIGATÓRIO)
 GEMINI_API_KEY=your_gemini_api_key_here
 HUGGINGFACE_API_KEY=your_huggingface_api_key_here
-
-# Configurações do Backend
 BACKEND_HOST=0.0.0.0
 BACKEND_PORT=8000
+```
 
-# Configurações do Frontend
+**Frontend (.env.local)**
+```env
 VITE_API_URL=http://localhost:8000
 ```
 
----
+### Chaves de API Necessárias
 
-## 🎯 Funcionalidades
+1. **Google Gemini**: [Obter chave](https://makersuite.google.com/app/apikey)
+2. **Hugging Face**: [Obter token](https://huggingface.co/settings/tokens)
 
-### ✅ **Backend (FastAPI)**
-- **Upload de Imagens**: Validação e processamento de imagens de mamografia
-- **Integração IA**: Google Gemini + Hugging Face com fallback automático
-- **Banco de Dados**: SQLite com SQLAlchemy ORM (campo `info` para metadados)
-- **API REST**: Endpoints documentados com Swagger UI
-- **Processamento**: Otimização de imagens (resolução, contraste, brilho)
-- **🆕 Prompt Otimizado**: Análises estruturadas com BI-RADS e priorização
+## Execução
 
-### ✅ **Frontend (Vue.js)**
-- **Interface Moderna**: Design responsivo e intuitivo
-- **Upload Drag & Drop**: Interface amigável para envio de imagens
-- **Dashboard Interativo**: Estatísticas e visualizações em tempo real
-- **Lista de Análises**: Histórico completo com filtros e busca
-- **🆕 Visualização Markdown**: Renderização formatada das análises
-- **🆕 Destaque Visual**: Cores para achados (🔴 Crítico, 🟡 Importante, 🟢 Normal)
-- **🆕 Metadados**: Visualização de informações de processamento da imagem
-
-### ✅ **Integração IA**
-- **Google Gemini 2.0 Flash**: Análise técnica com prompt otimizado
-  - 🆕 Estrutura em 9 seções
-  - 🆕 Classificação BI-RADS (0-6)
-  - 🆕 Priorização de achados
-  - 🆕 Níveis de confiança
-  - 🆕 Recomendações específicas
-- **Hugging Face**: Fallback automático com modelos de visão computacional
-- **Processamento Inteligente**: Otimização de imagens para melhor análise
-- **Status Tracking**: Acompanhamento em tempo real do processamento
-
----
-
-## 🔌 API Endpoints
-
-### **Upload e Gerenciamento**
-- `POST /api/v1/upload` - Upload de imagem de mamografia
-- `GET /api/v1/analyses` - Listar todas as análises
-- `GET /api/v1/analysis/{id}` - Detalhes de uma análise específica
-
-### **Análise com IA**
-- `POST /api/v1/analyze/{id}` - Análise com Gemini (fallback Hugging Face)
-- `POST /api/v1/analyze-huggingface/{id}` - Análise direta com Hugging Face
-
-### **Utilitários**
-- `GET /health` - Status da API
-- `GET /uploads/{filename}` - Servir imagens enviadas
-- `GET /docs` - Swagger UI interativo
-
----
-
-## 🚀 Deploy e Produção
-
-### **Comandos de Gerenciamento**
-
-```bash
-# Systemd (após instalação completa)
-mamografia start      # Iniciar serviços
-mamografia stop       # Parar serviços
-mamografia restart    # Reiniciar serviços
-mamografia status     # Ver status
-mamografia logs       # Ver logs
-
-# Docker
-docker-compose up -d        # Iniciar
-docker-compose down         # Parar
-docker-compose logs         # Ver logs
-```
-
----
-
-## 🧪 Testes
-
-### **Teste Manual**
-1. Acesse http://localhost:5173
-2. Faça upload de uma imagem de mamografia
-3. Execute a análise
-4. Visualize os resultados
-
-### **Teste da API**
+### Desenvolvimento
 ```bash
 # Backend
-cd Backend && python3 test_api.py
+cd Backend
+source venv/bin/activate
+python app.py
 
-# Frontend
-cd frontend && npm run test
+# Frontend (novo terminal)
+cd frontend
+npm run dev
 ```
 
----
+### Produção
+```bash
+# Docker Compose
+docker-compose up -d
 
-## 🐛 Solução de Problemas
+# Ou com systemd (após instalação completa)
+mamografia start
+```
 
-### **Erro: "Address already in use"**
+## API Endpoints
+
+### Upload e Gerenciamento
+- `POST /api/v1/upload` - Upload de imagem
+- `GET /api/v1/analyses` - Listar análises
+- `GET /api/v1/analysis/{id}` - Detalhes da análise
+- `DELETE /api/v1/analysis/{id}` - Excluir análise
+
+### Análise com IA
+- `POST /api/v1/analyze/{id}` - Análise com Gemini
+- `POST /api/v1/analyze-huggingface/{id}` - Análise com Hugging Face
+
+### Utilitários
+- `GET /health` - Status da API
+- `GET /uploads/{filename}` - Servir imagens
+- `GET /docs` - Swagger UI
+
+## Testes
+
+### Backend
+```bash
+cd Backend
+python test_api.py
+python test_huggingface_analysis.py
+```
+
+### Frontend
+```bash
+cd frontend
+npm run test
+```
+
+## Troubleshooting
+
+### Problemas Comuns
+
+**Erro: "Address already in use"**
 ```bash
 sudo lsof -ti:8000 | xargs sudo kill -9
 sudo lsof -ti:5173 | xargs sudo kill -9
 ```
 
-### **Erro: "API Key not found"**
+**Erro: "API Key not found"**
 ```bash
-# Verificar arquivo .env
-ls -la Backend/.env
-cat Backend/.env
+cat Backend/.env | grep API_KEY
 ```
 
-### **Erro: "Module not found"**
+**Erro: "table analyses has no column named info"**
 ```bash
-# Backend
-cd Backend && pip3 install -r requirements.txt
-
-# Frontend
-cd frontend && npm install
+cd Backend
+python migrate_database.py
 ```
 
----
+## Contribuição
 
-## 📊 Métricas do Projeto
+1. Fork o projeto
+2. Crie uma branch para sua feature (`git checkout -b feature/nova-funcionalidade`)
+3. Commit suas mudanças (`git commit -m 'feat: adiciona nova funcionalidade'`)
+4. Push para a branch (`git push origin feature/nova-funcionalidade`)
+5. Abra um Pull Request
 
-| Componente | Linhas de Código | Arquivos | Funcionalidades |
-|------------|------------------|----------|-----------------|
-| **Backend** | ~500 | 8 | 7 endpoints |
-| **Frontend** | ~800 | 15 | 4 componentes |
-| **Total** | ~1300 | 23+ | 20+ funcionalidades |
+## Equipe
 
----
+- **Felipe Nascimento da Silva** - Desenvolvimento Full-Stack
+- **Enzo Carvalho Mattiotti dos Reis** - Desenvolvimento Backend
+- **João Pedro Carvalho** - Desenvolvimento Frontend
 
-## 📖 Documentação
+**Universidade do Vale do Paraíba - Projetos IV - 2025**
 
-- **Backend API Docs**: http://localhost:8000/docs
-- **Frontend Components**: [./frontend/README.md](./frontend/README.md)
-- **Backend Details**: [./Backend/README.md](./Backend/README.md)
+## Licença
 
----
+Este projeto está licenciado sob a [Licença MIT](LICENSE).
 
-## 📞 Suporte
+## Suporte
 
 - **Email**: felipe.nascimento@univap.br
 - **GitHub**: [@Felipensct](https://github.com/Felipensct)
@@ -295,18 +252,4 @@ cd frontend && npm install
 
 ---
 
-## 📄 Licença
-
-Este projeto está licenciado sob a [Licença MIT](LICENSE).
-
----
-
-<div align="center">
-
-**🏆 Projeto desenvolvido para a matéria Projetos IV de Engenharia da Computação**
-
-**Universidade do Vale do Paraíba - 2025**
-
-[⬆ Voltar ao topo](#-plataforma-de-análise-de-mamografias-com-ia)
-
-</div>
+**Desenvolvido para fins acadêmicos - UNIVAP 2025**
