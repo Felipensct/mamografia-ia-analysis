@@ -1,5 +1,5 @@
-import axios from 'axios'
 import { API_CONFIG } from '@/config/api'
+import axios from 'axios'
 
 const API_BASE_URL = API_CONFIG.BASE_URL
 
@@ -17,6 +17,14 @@ export interface Analysis {
 }
 
 export interface AnalysisDetail extends Analysis {
+  info?: {
+    dimensions: [number, number]
+    format: string
+    mode: string
+    is_optimized: boolean
+    was_resized: boolean
+    original_dimensions?: [number, number]
+  }
   results: {
     gemini?: string
     gpt4v?: string
@@ -93,7 +101,7 @@ class ApiService {
       type: file.type,
       apiUrl: API_BASE_URL
     })
-    
+
     const formData = new FormData()
     formData.append('file', file)
 
@@ -103,7 +111,7 @@ class ApiService {
           'Content-Type': 'multipart/form-data',
         },
       })
-      
+
       console.log('✅ Upload bem-sucedido:', response.data)
       return response.data
     } catch (error: any) {
@@ -140,6 +148,12 @@ class ApiService {
   // Analisar imagem com Hugging Face
   async analyzeImageHF(id: number): Promise<AnalysisResponse> {
     const response = await this.api.post(`/api/v1/analyze-huggingface/${id}`)
+    return response.data
+  }
+
+  // Excluir análise
+  async deleteAnalysis(id: number): Promise<{ message: string; analysis_id: number; filename: string }> {
+    const response = await this.api.delete(`/api/v1/analysis/${id}`)
     return response.data
   }
 

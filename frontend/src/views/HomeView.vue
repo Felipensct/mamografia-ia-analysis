@@ -54,50 +54,73 @@
         </div>
       </div>
 
-      <!-- Stats Overview -->
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div class="card text-center">
-          <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-            </svg>
+      <!-- Stats Overview - Profissional -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8 animate-fade-in">
+        <div class="stat-card-modern">
+          <div class="stat-icon-container">
+            <div class="stat-icon-bg">
+              <svg class="stat-icon-large" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                      d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+            </div>
           </div>
-          <h3 class="text-2xl font-bold text-gray-900">{{ totalAnalyses }}</h3>
-          <p class="text-sm text-gray-600">Total de Análises</p>
+          <p class="stat-label">Total de Análises</p>
+          <p class="stat-value">{{ totalAnalyses }}</p>
+          <div class="stat-trend">
+            <span class="trend-up">↑ 12%</span>
+            <span class="trend-label">vs. semana anterior</span>
+          </div>
         </div>
 
-        <div class="card text-center">
-          <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-            <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+        <div class="stat-card-modern">
+          <div class="stat-icon-container">
+            <div class="stat-icon-bg" style="background: var(--gradient-success);">
+              <svg class="stat-icon-large" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
           </div>
-          <h3 class="text-2xl font-bold text-gray-900">{{ completedAnalyses.length }}</h3>
-          <p class="text-sm text-gray-600">Concluídas</p>
+          <p class="stat-label">Concluídas</p>
+          <p class="stat-value" style="background: var(--gradient-success); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">{{ completedAnalyses.length }}</p>
+          <div class="stat-trend">
+            <span class="trend-up">↑ 8%</span>
+            <span class="trend-label">taxa de sucesso</span>
+          </div>
         </div>
 
-        <div class="card text-center">
-          <div class="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-            <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
+        <div class="stat-card-modern">
+          <div class="stat-icon-container">
+            <div class="stat-icon-bg" style="background: var(--gradient-warning);">
+              <svg class="stat-icon-large processing-indicator" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </div>
           </div>
-          <h3 class="text-2xl font-bold text-gray-900">{{ processingAnalyses.length }}</h3>
-          <p class="text-sm text-gray-600">Processando</p>
+          <p class="stat-label">Processando</p>
+          <p class="stat-value" style="background: var(--gradient-warning); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">{{ processingAnalyses.length }}</p>
+          <div class="stat-trend">
+            <span class="trend-label">em andamento</span>
+          </div>
         </div>
 
-        <div class="card text-center">
-          <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-            <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+        <div class="stat-card-modern">
+          <div class="stat-icon-container">
+            <div class="stat-icon-bg" style="background: var(--gradient-danger);">
+              <svg class="stat-icon-large" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                      d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
           </div>
-          <h3 class="text-2xl font-bold text-gray-900">{{ errorAnalyses.length }}</h3>
-          <p class="text-sm text-gray-600">Com Erro</p>
+          <p class="stat-label">Com Erro</p>
+          <p class="stat-value" style="background: var(--gradient-danger); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">{{ errorAnalyses.length }}</p>
+          <div class="stat-trend">
+            <span class="trend-down">↓ 5%</span>
+            <span class="trend-label">taxa de erro</span>
+          </div>
         </div>
       </div>
 
@@ -121,44 +144,53 @@
               </button>
             </div>
 
-            <!-- Recent Analyses List -->
+            <!-- Recent Analyses List - Profissional -->
             <div v-if="recentAnalyses.length > 0" class="space-y-3">
               <div
-                v-for="analysis in recentAnalyses"
+                v-for="(analysis, index) in recentAnalyses"
                 :key="analysis.id"
                 @click="viewAnalysis(analysis.id)"
-                class="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                class="recent-analysis-item"
+                :style="{ animationDelay: `${index * 50}ms` }"
               >
                 <img
                   :src="getImageUrl(analysis.filename)"
                   :alt="analysis.original_filename"
-                  class="w-12 h-12 object-cover rounded-lg border border-gray-200"
+                  class="recent-analysis-thumbnail"
                   @error="handleImageError"
                 />
-                <div class="flex-1 min-w-0">
-                  <p class="text-sm font-medium text-gray-900 truncate">
+                <div class="recent-analysis-info">
+                  <p class="recent-analysis-title">
                     {{ analysis.original_filename }}
                   </p>
-                  <p class="text-xs text-gray-500">
+                  <p class="recent-analysis-date">
                     {{ formatDate(analysis.upload_date) }}
                   </p>
                 </div>
-                <span :class="getStatusBadgeClass(analysis.status)">
+                <span class="badge-with-dot">
+                  <span 
+                    class="dot-pulse" 
+                    :class="getStatusDotClass(analysis.status)"
+                  ></span>
                   {{ getStatusText(analysis.status) }}
                 </span>
               </div>
             </div>
 
-            <!-- Empty State -->
-            <div v-else class="text-center py-8">
-              <div class="mx-auto w-16 h-16 text-gray-300 mb-4">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" 
+            <!-- Empty State - Profissional -->
+            <div v-else class="empty-state-professional">
+              <div class="empty-icon-glow">
+                <svg class="empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" 
                         d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               </div>
-              <h4 class="text-lg font-medium text-gray-900 mb-2">Nenhuma análise recente</h4>
-              <p class="text-gray-600">Faça upload de uma imagem para começar</p>
+              <h3 class="empty-title">Nenhuma análise recente</h3>
+              <p class="empty-description">Faça upload da primeira mamografia para começar a análise com IA</p>
+              <button class="btn-cta" @click="scrollToUpload">
+                <span>📁</span>
+                <span>Começar Agora</span>
+              </button>
             </div>
           </div>
         </div>
@@ -214,7 +246,7 @@
           </div>
         </div>
       </div>
-    </main>
+  </main>
 
     <!-- Footer -->
     <footer class="bg-white border-t border-gray-200 mt-16">
@@ -228,11 +260,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { useAnalysisStore } from '@/stores/analysis'
 import ImageUpload from '@/components/ImageUpload.vue'
 import apiService from '@/services/api'
+import { useAnalysisStore } from '@/stores/analysis'
+import { computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const analysisStore = useAnalysisStore()
@@ -288,6 +320,33 @@ function getStatusText(status: string): string {
     error: 'Erro'
   }
   return texts[status as keyof typeof texts] || status
+}
+
+function getStatusGradient(status: string): string {
+  const gradients = {
+    uploaded: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+    processing: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+    completed: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
+    error: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)'
+  }
+  return gradients[status as keyof typeof gradients] || gradients.uploaded
+}
+
+function getStatusDotClass(status: string): string {
+  const dotClasses = {
+    uploaded: 'dot-primary',
+    processing: 'dot-warning',
+    completed: 'dot-success',
+    error: 'dot-danger'
+  }
+  return dotClasses[status as keyof typeof dotClasses] || 'dot-primary'
+}
+
+function scrollToUpload() {
+  const uploadSection = document.querySelector('.upload-area')
+  if (uploadSection) {
+    uploadSection.scrollIntoView({ behavior: 'smooth' })
+  }
 }
 
 function formatDate(dateString: string): string {

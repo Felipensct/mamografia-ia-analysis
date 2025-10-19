@@ -7,12 +7,30 @@
 ![Vue.js](https://img.shields.io/badge/Vue.js-3.4+-4FC08D.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6.svg)
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
+![Status](https://img.shields.io/badge/Status-Atualizado-success.svg)
 
 **Sistema completo para análise inteligente de imagens de mamografia utilizando múltiplas APIs de IA**
 
-[🚀 Instalação](#-instalação) • [🔧 Configuração](#-configuração) • [🎯 Funcionalidades](#-funcionalidades) • [📖 Documentação](#-documentação)
+**✨ Versão 2.0.0 - Atualizado com Prompt Otimizado, Markdown e BI-RADS**
+
+[🚀 Instalação](#-instalação) • [🔧 Configuração](#-configuração) • [🎯 Funcionalidades](#-funcionalidades) • [📖 Documentação](#-documentação) • [🆕 Novidades](#-novidades-v200)
 
 </div>
+
+---
+
+## 🆕 Novidades v2.0.0
+
+### ✨ Melhorias Implementadas
+
+- ✅ **Prompt do Gemini Otimizado**: Análises estruturadas com formato Markdown
+- ✅ **Classificação BI-RADS**: Sistema de categorização integrado (0-6)
+- ✅ **Priorização de Achados**: Sistema visual (🔴 Crítico, 🟡 Importante, 🟢 Observação)
+- ✅ **Renderização Markdown**: Visualização formatada e hierárquica
+- ✅ **Campo Info**: Metadados de processamento da imagem
+- ✅ **Bugs Corrigidos**: Funções duplicadas e reatividade
+
+📋 **Ver detalhes:** [CHANGELOG_MELHORIAS.md](CHANGELOG_MELHORIAS.md)
 
 ---
 
@@ -30,6 +48,33 @@ Plataforma web completa que permite analisar imagens de mamografia utilizando **
 - **Felipe Nascimento da Silva** - Desenvolvimento Full-Stack
 - **Enzo Carvalho Mattiotti dos Reis** - Desenvolvimento Backend
 - **João Pedro Carvalho** - Desenvolvimento Frontend
+
+---
+
+## ⚡ Início Rápido
+
+### **Método Mais Simples:**
+
+```bash
+# 1. Clone o repositório
+git clone https://github.com/Felipensct/mamografia-ia-analysis.git
+cd mamografia-ia-analysis
+
+# 2. Configure suas chaves de API
+cp Backend/env.example Backend/.env
+nano Backend/.env  # Adicione suas chaves
+
+# 3. Execute o script de inicialização
+./start.sh
+```
+
+O script irá:
+- ✅ Verificar dependências
+- ✅ Criar ambiente virtual
+- ✅ Instalar pacotes
+- ✅ Iniciar Backend e Frontend
+
+📖 **Ver guia completo:** [GUIA_EXECUCAO.md](GUIA_EXECUCAO.md)
 
 ---
 
@@ -114,20 +159,28 @@ VITE_API_URL=http://localhost:8000
 ### ✅ **Backend (FastAPI)**
 - **Upload de Imagens**: Validação e processamento de imagens de mamografia
 - **Integração IA**: Google Gemini + Hugging Face com fallback automático
-- **Banco de Dados**: SQLite com SQLAlchemy ORM
+- **Banco de Dados**: SQLite com SQLAlchemy ORM (campo `info` para metadados)
 - **API REST**: Endpoints documentados com Swagger UI
 - **Processamento**: Otimização de imagens (resolução, contraste, brilho)
+- **🆕 Prompt Otimizado**: Análises estruturadas com BI-RADS e priorização
 
 ### ✅ **Frontend (Vue.js)**
 - **Interface Moderna**: Design responsivo e intuitivo
 - **Upload Drag & Drop**: Interface amigável para envio de imagens
 - **Dashboard Interativo**: Estatísticas e visualizações em tempo real
 - **Lista de Análises**: Histórico completo com filtros e busca
-- **Visualização de Resultados**: Exibição detalhada das análises de IA
+- **🆕 Visualização Markdown**: Renderização formatada das análises
+- **🆕 Destaque Visual**: Cores para achados (🔴 Crítico, 🟡 Importante, 🟢 Normal)
+- **🆕 Metadados**: Visualização de informações de processamento da imagem
 
 ### ✅ **Integração IA**
-- **Google Gemini**: Análise técnica detalhada com prompt otimizado
-- **Hugging Face**: Fallback automático para modelos alternativos
+- **Google Gemini 2.0 Flash**: Análise técnica com prompt otimizado
+  - 🆕 Estrutura em 9 seções
+  - 🆕 Classificação BI-RADS (0-6)
+  - 🆕 Priorização de achados
+  - 🆕 Níveis de confiança
+  - 🆕 Recomendações específicas
+- **Hugging Face**: Fallback automático com modelos de visão computacional
 - **Processamento Inteligente**: Otimização de imagens para melhor análise
 - **Status Tracking**: Acompanhamento em tempo real do processamento
 

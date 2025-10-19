@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse, FileResponse
 import uvicorn
 import os
 import uuid
+import json
 from pathlib import Path
 from datetime import datetime
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, Float, Boolean
@@ -53,6 +54,9 @@ class Analysis(Base):
     processing_status = Column(String(50), default="uploaded")
     processing_date = Column(DateTime, nullable=True)
     error_message = Column(Text, nullable=True)
+    
+    # Informações de processamento da imagem
+    info = Column(Text, nullable=True)
     
     # Campos para futuras funcionalidades
     confidence_score = Column(Float, nullable=True)
@@ -185,7 +189,8 @@ async def upload_mammography(file: UploadFile = File(...), db: Session = Depends
             original_filename=file.filename,
             file_path=file_path,
             file_size=len(content),
-            processing_status="uploaded"
+            processing_status="uploaded",
+            info=json.dumps(image_info)
         )
         
         db.add(analysis)
@@ -277,6 +282,14 @@ async def get_analysis(analysis_id: int, db: Session = Depends(get_db)):
         if not analysis:
             raise HTTPException(status_code=404, detail="Análise não encontrada")
         
+        # Parse info from JSON string
+        info_data = None
+        if analysis.info:
+            try:
+                info_data = json.loads(analysis.info)
+            except:
+                info_data = None
+        
         return {
             "id": analysis.id,
             "filename": analysis.filename,
@@ -286,6 +299,7 @@ async def get_analysis(analysis_id: int, db: Session = Depends(get_db)):
             "processing_date": analysis.processing_date,
             "status": analysis.processing_status,
             "error_message": analysis.error_message,
+            "info": info_data,
             "results": {
                 "gemini": analysis.gemini_analysis,
                 "gpt4v": analysis.gpt4v_analysis
@@ -336,7 +350,7 @@ async def analyze_mammography(analysis_id: int, db: Session = Depends(get_db)):
             }
         else:
             # Se Gemini falhar, tentar Hugging Face
-            hf_result = ai_service.analyze_with_huggingface(analysis.file_path)
+            hf_result = ai_service.analyze_with_alternative_api(analysis.file_path)
             
             if hf_result["success"]:
                 analysis.gemini_analysis = hf_result["analysis"]
@@ -393,7 +407,7 @@ async def analyze_mammography_hf(analysis_id: int, db: Session = Depends(get_db)
         db.commit()
         
         # Fazer análise com Hugging Face
-        hf_result = ai_service.analyze_with_huggingface(analysis.file_path)
+        hf_result = ai_service.analyze_with_alternative_api(analysis.file_path)
         
         if hf_result["success"]:
             # Salvar resultado no banco
@@ -428,9 +442,45 @@ async def analyze_mammography_hf(analysis_id: int, db: Session = Depends(get_db)
         db.commit()
         raise HTTPException(status_code=500, detail=f"Erro na análise: {str(e)}")
 
+# Endpoint para excluir análise
+@app.delete("/api/v1/analysis/{analysis_id}")
+async def delete_analysis(analysis_id: int, db: Session = Depends(get_db)):
+    """
+    Excluir análise e arquivo associado
+    """
+    try:
+        analysis = db.query(Analysis).filter(Analysis.id == analysis_id).first()
+        
+        if not analysis:
+            raise HTTPException(status_code=404, detail="Análise não encontrada")
+        
+        # Excluir arquivo físico se existir
+        if os.path.exists(analysis.file_path):
+            try:
+                os.remove(analysis.file_path)
+                print(f"🗑️  Arquivo excluído: {analysis.file_path}")
+            except Exception as e:
+                print(f"⚠️  Erro ao excluir arquivo: {str(e)}")
+        
+        # Excluir do banco de dados
+        db.delete(analysis)
+        db.commit()
+        
+        return {
+            "message": "Análise excluída com sucesso",
+            "analysis_id": analysis_id,
+            "filename": analysis.filename
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Erro ao excluir análise: {str(e)}")
+
 def validate_and_process_image(file_content: bytes, filename: str) -> dict:
     """
-    Valida e processa imagem de mamografia
+                                image.png    Valida e processa imagem de mamografia com redimensionamento inteligente
     
     Args:
         file_content: Conteúdo binário da imagem
@@ -451,22 +501,34 @@ def validate_and_process_image(file_content: bytes, filename: str) -> dict:
         # Reabrir para processamento já que verify fecha a imagem
         image = Image.open(io.BytesIO(file_content))
 
-        width, height = image.size
+        original_width, original_height = image.size
 
         min_width, min_height = 100, 100
         max_width, max_height = 4000, 4000
 
-        if width < min_width or height < min_height:
+        # Verificar tamanho mínimo
+        if original_width < min_width or original_height < min_height:
             raise HTTPException(
                 status_code=400,
                 detail=f"Imagem muito pequena. Mínimo de {min_width}x{min_height}px"
             )
         
-        if width > max_width or height > max_height:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Imagem muito grande. Máximo de {max_width}x{max_height}px"
-            )
+        # Se imagem for muito grande, redimensionar automaticamente
+        was_resized = False
+        if original_width > max_width or original_height > max_height:
+            print(f"📏 Imagem grande detectada: {original_width}x{original_height}px")
+            print(f"🔄 Redimensionando automaticamente para máximo {max_width}x{max_height}px...")
+            
+            # Calcular nova dimensão mantendo proporção
+            ratio = min(max_width / original_width, max_height / original_height)
+            new_width = int(original_width * ratio)
+            new_height = int(original_height * ratio)
+            
+            print(f"📐 Nova dimensão: {new_width}x{new_height}px (proporção: {ratio:.2f})")
+            
+            # Redimensionar com alta qualidade
+            image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            was_resized = True
         
     except Exception as e:
         raise HTTPException(
@@ -489,18 +551,30 @@ def validate_and_process_image(file_content: bytes, filename: str) -> dict:
     enhancer = ImageEnhance.Brightness(image)
     image = enhancer.enhance(1.1)  # Aumentar brilho em 10%
 
-    # Resolução otimizada para análise de IA (maior que antes)
-    max_size = (2048, 2048)  # Aumentado de 1024x1024 para 2048x2048
-    if width > max_size[0] or height > max_size[1]:
-        image.thumbnail(max_size, Image.Resampling.LANCZOS)
-        width, height = image.size
+    # Resolução otimizada para análise de IA
+    final_max_size = (2048, 2048)  # Tamanho ideal para IA
+    current_width, current_height = image.size
+    
+    if current_width > final_max_size[0] or current_height > final_max_size[1]:
+        print(f"🎯 Otimizando para análise de IA: {current_width}x{current_height}px → {final_max_size[0]}x{final_max_size[1]}px")
+        image.thumbnail(final_max_size, Image.Resampling.LANCZOS)
+        current_width, current_height = image.size
+        was_resized = True
 
-    return {
-        "dimensions": (width, height),
+    # Informações da imagem processada
+    processed_info = {
+        "dimensions": (current_width, current_height),
         "format": image.format,
         "mode": image.mode,
-        "is_optimized": width <= 1024 and height <= 1024
+        "is_optimized": current_width <= 1024 and current_height <= 1024,
+        "was_resized": was_resized,
+        "original_dimensions": (original_width, original_height) if was_resized else None
     }
+    
+    if was_resized:
+        print(f"✅ Imagem processada: {original_width}x{original_height}px → {current_width}x{current_height}px")
+    
+    return processed_info
 
 if __name__ == "__main__":
     print("🚀 Iniciando aplicação FastAPI...")

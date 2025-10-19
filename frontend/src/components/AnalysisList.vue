@@ -92,25 +92,29 @@
       </div>
     </div>
 
-    <!-- Empty State -->
-    <div v-else-if="analyses.length === 0" class="text-center py-12">
-      <div class="mx-auto w-24 h-24 text-gray-300 mb-4">
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" 
+    <!-- Empty State - Modernizado -->
+    <div v-else-if="analyses.length === 0" class="empty-state-modern">
+      <div class="empty-icon-container">
+        <div class="empty-icon-bg"></div>
+        <svg class="empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" 
                 d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
       </div>
-      <h3 class="text-lg font-medium text-gray-900 mb-2">Nenhuma análise encontrada</h3>
-      <p class="text-gray-600 mb-4">Faça upload de uma imagem para começar a análise</p>
+      <h3 class="empty-title">Nenhuma análise encontrada</h3>
+      <p class="empty-description">Faça upload de uma imagem para começar a análise</p>
     </div>
 
-    <!-- Analysis List -->
+    <!-- Analysis List - Modernizado -->
     <div v-else class="space-y-4">
       <div
-        v-for="analysis in analyses"
+        v-for="(analysis, index) in analyses"
         :key="analysis.id"
-        class="card hover:shadow-md transition-shadow duration-200"
+        class="analysis-card animate-fade-in"
+        :style="{ animationDelay: `${index * 50}ms` }"
       >
+        <!-- Status Bar colorida -->
+        <div class="status-bar" :class="analysis.status"></div>
         <div class="flex items-center justify-between">
           <div class="flex items-center space-x-4">
             <!-- Thumbnail -->
@@ -146,28 +150,40 @@
           <!-- Actions -->
           <div class="flex items-center space-x-2">
             <button
-              @click="viewAnalysis(analysis.id)"
-              class="btn-secondary text-sm"
+              @click.stop="viewAnalysis(analysis.id)"
+              class="btn-secondary btn-sm"
             >
               Ver Detalhes
             </button>
             
             <button
               v-if="analysis.status === 'uploaded'"
-              @click="analyzeImage(analysis.id)"
+              @click.stop="analyzeImage(analysis.id)"
               :disabled="loading"
-              class="btn-primary text-sm"
+              class="btn-primary btn-sm"
             >
               Analisar
             </button>
             
             <button
               v-if="analysis.status === 'error'"
-              @click="retryAnalysis(analysis.id)"
+              @click.stop="retryAnalysis(analysis.id)"
               :disabled="loading"
-              class="btn-secondary text-sm"
+              class="btn-secondary btn-sm"
             >
               Tentar Novamente
+            </button>
+            
+            <!-- Botão de exclusão -->
+            <button
+              @click.stop="confirmDelete(analysis)"
+              class="btn-danger btn-sm btn-icon"
+              title="Excluir análise"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
             </button>
           </div>
         </div>
@@ -194,10 +210,10 @@
 </template>
 
 <script setup lang="ts">
+import apiService from '@/services/api'
+import { useAnalysisStore } from '@/stores/analysis'
 import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAnalysisStore } from '@/stores/analysis'
-import apiService from '@/services/api'
 
 const router = useRouter()
 const analysisStore = useAnalysisStore()
@@ -236,6 +252,24 @@ async function retryAnalysis(id: number) {
     await analysisStore.analyzeImage(id)
   } catch (error) {
     console.error('Erro na nova tentativa:', error)
+  }
+}
+
+async function confirmDelete(analysis: any) {
+  const confirmed = confirm(
+    `Tem certeza que deseja excluir a análise "${analysis.original_filename}"?\n\n` +
+    'Esta ação não pode ser desfeita e removerá permanentemente:\n' +
+    '• O arquivo da imagem\n' +
+    '• Todos os dados da análise\n' +
+    '• Resultados das APIs'
+  )
+  
+  if (confirmed) {
+    try {
+      await analysisStore.deleteAnalysis(analysis.id)
+    } catch (error) {
+      console.error('Erro ao excluir análise:', error)
+    }
   }
 }
 

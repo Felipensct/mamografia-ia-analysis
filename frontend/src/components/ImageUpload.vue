@@ -9,13 +9,16 @@
       </p>
     </div>
 
-    <!-- Área de Upload -->
+    <!-- Área de Upload - Modernizada -->
     <div
       ref="dropZone"
       :class="[
         'upload-area',
+        'glass-effect',
+        'transition-all',
         { 'dragover': isDragOver },
-        { 'opacity-50': loading }
+        { 'opacity-50': loading },
+        { 'scale-in': !loading }
       ]"
       @click="triggerFileInput"
       @dragover.prevent="handleDragOver"
@@ -108,6 +111,9 @@
             <p class="text-xs text-gray-500">
               {{ formatFileSize(selectedFile.size) }}
             </p>
+            <div class="mt-1 text-xs text-blue-600">
+              💡 Imagens grandes serão redimensionadas automaticamente
+            </div>
             <p class="text-xs text-gray-400">
               {{ imageDimensions }}
             </p>
@@ -142,8 +148,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
 import { useAnalysisStore } from '@/stores/analysis'
+import { computed, ref } from 'vue'
 
 const analysisStore = useAnalysisStore()
 
@@ -208,9 +214,13 @@ function handleDrop(event: DragEvent) {
 }
 
 function selectFile(file: File) {
+  // Limpar erros anteriores
+  analysisStore.clearError()
+  
   // Validar tipo de arquivo
-  if (!file.type.startsWith('image/')) {
-    analysisStore.error = 'Por favor, selecione um arquivo de imagem válido'
+  const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/tiff', 'image/bmp']
+  if (!allowedTypes.includes(file.type)) {
+    analysisStore.error = 'Tipo de arquivo não suportado. Use PNG, JPG, JPEG, TIFF ou BMP'
     return
   }
 
@@ -221,8 +231,14 @@ function selectFile(file: File) {
     return
   }
 
+  // Validar tamanho mínimo (1KB)
+  const minSize = 1024
+  if (file.size < minSize) {
+    analysisStore.error = 'Arquivo muito pequeno. Tamanho mínimo: 1KB'
+    return
+  }
+
   selectedFile.value = file
-  analysisStore.clearError()
 }
 
 function clearFile() {
