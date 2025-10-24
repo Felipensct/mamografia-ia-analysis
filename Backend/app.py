@@ -18,6 +18,9 @@ from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.sql import func
 from PIL import Image, ImageOps
 import io
+import pydicom
+from pydicom.errors import InvalidDicomError
+import numpy as np
 from services.ai_service import AIService
 
 # Configurações básicas
@@ -88,7 +91,7 @@ app = FastAPI(
 # Configuração de CORS para permitir requisições do frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:8080", "http://localhost:5173"],  # URLs do frontend Vue.js
+    allow_origins=["http://localhost:3000", "http://localhost:8080", "http://localhost:5173", "http://localhost:5174", "http://localhost:5175"],  # URLs do frontend Vue.js
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -124,6 +127,7 @@ async def health_check():
 
 # Endpoint para servir imagens
 @app.get("/uploads/{filename}")
+@app.head("/uploads/{filename}")
 async def get_image(filename: str):
     """
     Endpoint para servir imagens enviadas
@@ -142,12 +146,15 @@ async def upload_mammography(file: UploadFile = File(...), db: Session = Depends
     Endpoint para upload de imagem de mamografia com armazenamento no banco
     """
     try:
-        # Verificar se é uma imagem
-        if not file.content_type.startswith('image/'):
-            raise HTTPException(status_code=400, detail="Arquivo deve ser uma imagem")
+        # Verificar se é uma imagem ou arquivo DICOM
+        allowed_content_types = ['image/', 'application/dicom', 'application/octet-stream']
+        is_valid_content_type = any(file.content_type.startswith(ct) for ct in allowed_content_types)
+        
+        if not is_valid_content_type:
+            raise HTTPException(status_code=400, detail="Arquivo deve ser uma imagem ou arquivo DICOM")
         
         # Verificar extensão
-        allowed_extensions = ['.png', '.jpg', '.jpeg']
+        allowed_extensions = ['.png', '.jpg', '.jpeg', '.dcm']
         file_extension = Path(file.filename).suffix.lower()
         if file_extension not in allowed_extensions:
             raise HTTPException(
@@ -158,25 +165,53 @@ async def upload_mammography(file: UploadFile = File(...), db: Session = Depends
         # Ler conteúdo do arquivo
         content = await file.read()
 
-        try:
-            image_info = validate_and_process_image(content, file.filename)
-        except HTTPException as e:
-            raise
-        except Exception as e:
-            raise HTTPException(status_code=500,
-            detail=f"Erro ao processar imagem: {str(e)}")
+        # Processar arquivo DICOM se necessário
+        if file_extension == '.dcm':
+            try:
+                # Converter DICOM para imagem
+                content, dicom_info = convert_dicom_to_image(content, file.filename)
+                # Usar informações do DICOM como base
+                image_info = {
+                    "dimensions": (dicom_info["rows"], dicom_info["columns"]),
+                    "format": "DICOM",
+                    "mode": "RGB",
+                    "is_optimized": True,
+                    "was_resized": False,
+                    "original_dimensions": None,
+                    "dicom_metadata": dicom_info
+                }
+            except HTTPException as e:
+                raise
+            except Exception as e:
+                raise HTTPException(status_code=500,
+                detail=f"Erro ao processar arquivo DICOM: {str(e)}")
+        else:
+            try:
+                image_info = validate_and_process_image(content, file.filename)
+            except HTTPException as e:
+                raise
+            except Exception as e:
+                raise HTTPException(status_code=500,
+                detail=f"Erro ao processar imagem: {str(e)}")
         
         
-        # Verificar tamanho (10MB máximo)
-        max_size = 10 * 1024 * 1024  # 10MB
+        # Verificar tamanho baseado no tipo de arquivo
+        is_dicom = file_extension == '.dcm'
+        max_size = 50 * 1024 * 1024 if is_dicom else 10 * 1024 * 1024  # 50MB para DICOM, 10MB para outros
+        max_size_mb = max_size / (1024*1024)
+        
         if len(content) > max_size:
             raise HTTPException(
                 status_code=400, 
-                detail=f"Arquivo muito grande. Tamanho máximo: {max_size / (1024*1024):.1f}MB"
+                detail=f"Arquivo muito grande. Tamanho máximo: {max_size_mb:.0f}MB"
             )
         
         # Gerar nome único para o arquivo
-        unique_filename = f"{uuid.uuid4()}{file_extension}"
+        if file_extension == '.dcm':
+            # Para DICOM, salvar como JPEG convertido
+            unique_filename = f"{uuid.uuid4()}.jpg"
+        else:
+            unique_filename = f"{uuid.uuid4()}{file_extension}"
         file_path = os.path.join(UPLOAD_DIR, unique_filename)
         
         # Salvar arquivo
@@ -478,6 +513,98 @@ async def delete_analysis(analysis_id: int, db: Session = Depends(get_db)):
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Erro ao excluir análise: {str(e)}")
 
+def convert_dicom_to_image(file_content: bytes, filename: str) -> tuple[bytes, dict]:
+    """
+    Converte arquivo DICOM para formato de imagem suportado
+    
+    Args:
+        file_content: Conteúdo binário do arquivo DICOM
+        filename: Nome do arquivo original
+    
+    Returns:
+        tuple: (conteúdo da imagem convertida, informações do DICOM)
+    
+    Raises:
+        HTTPException: Se o arquivo DICOM for inválido
+    """
+    try:
+        # Carregar arquivo DICOM (usar force=True para arquivos sem cabeçalho completo)
+        dicom_file = pydicom.dcmread(io.BytesIO(file_content), force=True)
+        
+        # Extrair metadados importantes
+        dicom_info = {
+            "patient_id": str(dicom_file.get("PatientID", "N/A")),
+            "study_date": str(dicom_file.get("StudyDate", "N/A")),
+            "study_time": str(dicom_file.get("StudyTime", "N/A")),
+            "modality": str(dicom_file.get("Modality", "N/A")),
+            "body_part": str(dicom_file.get("BodyPartExamined", "N/A")),
+            "study_description": str(dicom_file.get("StudyDescription", "N/A")),
+            "series_description": str(dicom_file.get("SeriesDescription", "N/A")),
+            "manufacturer": str(dicom_file.get("Manufacturer", "N/A")),
+            "manufacturer_model": str(dicom_file.get("ManufacturerModelName", "N/A")),
+            "rows": int(dicom_file.get("Rows", 0)),
+            "columns": int(dicom_file.get("Columns", 0)),
+            "bits_allocated": int(dicom_file.get("BitsAllocated", 16)),
+            "photometric_interpretation": str(dicom_file.get("PhotometricInterpretation", "N/A")),
+            "window_center": str(dicom_file.get("WindowCenter", "N/A")),
+            "window_width": str(dicom_file.get("WindowWidth", "N/A"))
+        }
+        
+        # Obter pixel array
+        pixel_array = dicom_file.pixel_array
+        
+        # Aplicar windowing se disponível
+        if hasattr(dicom_file, 'WindowCenter') and hasattr(dicom_file, 'WindowWidth'):
+            try:
+                window_center = float(dicom_file.WindowCenter)
+                window_width = float(dicom_file.WindowWidth)
+                
+                # Aplicar windowing
+                min_val = window_center - window_width / 2
+                max_val = window_center + window_width / 2
+                
+                pixel_array = np.clip(pixel_array, min_val, max_val)
+                pixel_array = ((pixel_array - min_val) / (max_val - min_val) * 255).astype(np.uint8)
+            except:
+                # Se windowing falhar, normalizar diretamente
+                pixel_array = ((pixel_array - pixel_array.min()) / (pixel_array.max() - pixel_array.min()) * 255).astype(np.uint8)
+        else:
+            # Normalizar para 0-255
+            pixel_array = ((pixel_array - pixel_array.min()) / (pixel_array.max() - pixel_array.min()) * 255).astype(np.uint8)
+        
+        # Converter para PIL Image
+        if len(pixel_array.shape) == 3:
+            # Imagem colorida
+            image = Image.fromarray(pixel_array)
+        else:
+            # Imagem em escala de cinza
+            image = Image.fromarray(pixel_array, mode='L')
+        
+        # Converter para RGB se necessário
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
+        
+        # Salvar como JPEG em memória
+        img_buffer = io.BytesIO()
+        image.save(img_buffer, format='JPEG', quality=95)
+        img_content = img_buffer.getvalue()
+        
+        print(f"✅ DICOM convertido com sucesso: {dicom_info['rows']}x{dicom_info['columns']}px")
+        print(f"📋 Modalidade: {dicom_info['modality']}, Parte do corpo: {dicom_info['body_part']}")
+        
+        return img_content, dicom_info
+        
+    except InvalidDicomError:
+        raise HTTPException(
+            status_code=400,
+            detail="Arquivo DICOM inválido ou corrompido"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Erro ao processar arquivo DICOM: {str(e)}"
+        )
+
 def validate_and_process_image(file_content: bytes, filename: str) -> dict:
     """
                                 image.png    Valida e processa imagem de mamografia com redimensionamento inteligente
@@ -587,5 +714,7 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=8000,
         reload=True,
-        log_level="info"
+        log_level="info",
+        timeout_keep_alive=30,
+        limit_max_requests=1000
     )

@@ -1,5 +1,5 @@
 import { useToast } from '@/composables/useToast'
-import type { Analysis, AnalysisDetail, AnalysisResponse, UploadResponse } from '@/services/api'
+import type { Analysis, AnalysisDetail, AnalysisResponse, UploadResponse } from '@/domain/models'
 import apiService from '@/services/api'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
@@ -9,6 +9,7 @@ export const useAnalysisStore = defineStore('analysis', () => {
   const analyses = ref<Analysis[]>([])
   const currentAnalysis = ref<AnalysisDetail | null>(null)
   const loading = ref(false)
+  const uploadLoading = ref(false)
   const error = ref<string | null>(null)
   const uploadProgress = ref(0)
 
@@ -74,7 +75,7 @@ export const useAnalysisStore = defineStore('analysis', () => {
   async function uploadImage(file: File): Promise<UploadResponse> {
     try {
       console.log('🔄 Store: Iniciando upload da imagem:', file.name)
-      loading.value = true
+      uploadLoading.value = true
       error.value = null
       uploadProgress.value = 0
 
@@ -124,7 +125,7 @@ export const useAnalysisStore = defineStore('analysis', () => {
 
       throw err
     } finally {
-      loading.value = false
+      uploadLoading.value = false
       uploadProgress.value = 0
     }
   }
@@ -235,6 +236,7 @@ export const useAnalysisStore = defineStore('analysis', () => {
     analyses,
     currentAnalysis,
     loading,
+    uploadLoading,
     error,
     uploadProgress,
 

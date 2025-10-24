@@ -1,754 +1,396 @@
 <template>
-  <div v-if="analysis" class="space-y-6">
-    <!-- Header -->
-    <div class="flex items-center justify-between">
-      <div class="flex items-center space-x-4">
-        <!-- Botão de voltar -->
-        <button 
-          @click="goBack" 
-          class="btn-back flex items-center space-x-2"
-          title="Voltar"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-          </svg>
-          <span>Voltar</span>
-        </button>
+  <div v-if="analysis">
+    <!-- Conteúdo Principal -->
+    <div>
+      <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
         
-        <div>
-          <h2 class="text-xl font-semibold text-gray-900">
-            {{ analysis.original_filename }}
-          </h2>
-          <p class="text-sm text-gray-600 mt-1">
-            Análise #{{ analysis.id }} • {{ formatDate(analysis.upload_date) }}
-          </p>
-        </div>
-      </div>
-      
-      <div class="flex items-center space-x-3">
-        <span :class="getStatusBadgeClass(analysis.status)">
-          {{ getStatusText(analysis.status) }}
-        </span>
-        
-        <!-- Botão de exclusão -->
-        <button 
-          @click="confirmDelete" 
-          class="btn-danger btn-sm flex items-center space-x-2"
-          title="Excluir análise"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-          </svg>
-          <span>Excluir</span>
-        </button>
-        
-        <div v-if="analysis.status === 'uploaded'" class="analysis-method-selector">
-          <div class="selector-header">
-            <div class="icon-medical-ai">🧠</div>
-            <h3 class="medical-headline">Escolha o Método de Análise</h3>
-            <p class="selector-subtitle">Diferentes IAs oferecem perspectivas complementares</p>
-          </div>
-          
-          <div class="method-cards-grid">
-            <!-- Card Gemini -->
-            <button
-              @click="analyzeImage"
-              :disabled="loading"
-              class="method-card method-card-primary group"
-            >
-              <div class="method-badge">Recomendado</div>
-              <div class="method-icon-container">
-                <div class="method-icon-bg gradient-primary">
-                  <span class="method-icon">🌟</span>
-                </div>
-              </div>
-              <h4 class="method-title">Gemini AI</h4>
-              <p class="method-description">Análise médica especializada e contextualizada</p>
-              <ul class="method-features">
-                <li>✓ BI-RADS Classification</li>
-                <li>✓ Detecção de anomalias</li>
-                <li>✓ Recomendações clínicas</li>
-              </ul>
-              <div class="method-action">
-                Analisar com Gemini →
-              </div>
-            </button>
-            
-            <!-- Card Hugging Face -->
-            <button
-              @click="analyzeImageHF"
-              :disabled="loading"
-              class="method-card method-card-secondary group"
-            >
-              <div class="method-icon-container">
-                <div class="method-icon-bg gradient-warning">
-                  <span class="method-icon">🤗</span>
-                </div>
-              </div>
-              <h4 class="method-title">Hugging Face</h4>
-              <p class="method-description">Análise técnica de padrões visuais</p>
-              <ul class="method-features">
-                <li>✓ Análise computacional</li>
-                <li>✓ Características técnicas</li>
-                <li>✓ Processamento OpenCV</li>
-              </ul>
-              <div class="method-action">
-                Analisar com HF →
-              </div>
-            </button>
-          </div>
-          
-        <div class="analysis-tip">
-          💡 <strong>Dica:</strong> Use ambas as APIs para uma análise mais completa
-        </div>
-      </div>
-
-      </div>
-    </div>
-
-    <!-- Image and Analysis Grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- Image Section - Profissional -->
-      <div class="card">
-        <h3 class="text-lg font-medium text-gray-900 mb-4">Imagem Original</h3>
-        
-        <div class="image-viewer-professional">
-          <div class="image-container-professional">
-            <img
-              ref="zoomableImage"
-              :src="getImageUrl(analysis.filename)"
-              :alt="analysis.original_filename"
-              :class="['zoomable-image', { 'zoomed': isZoomed }]"
-              :style="{ transform: `scale(${zoomLevel})` }"
-              @click="toggleZoom"
-              @error="handleImageError"
-            />
-            
-            <!-- Controles Profissionais -->
-            <div class="image-controls-professional">
-              <button class="control-btn-professional" @click.stop="zoomIn" title="Ampliar">
-                🔍+
-                <span>Ampliar</span>
-              </button>
-              <button class="control-btn-professional" @click.stop="zoomOut" title="Reduzir">
-                🔍-
-                <span>Reduzir</span>
-              </button>
-              <button class="control-btn-professional" @click.stop="resetZoom" title="Resetar">
-                ↻
-                <span>Resetar</span>
-              </button>
-              <button class="control-btn-professional" @click.stop="downloadImage" title="Baixar">
-                ⬇️
-                <span>Baixar</span>
-              </button>
-            </div>
-            
-            <!-- Metadata Overlay -->
-            <div class="image-metadata-overlay">
-              <span class="metadata-badge">{{ formatFileSize(analysis.file_size) }}</span>
-              <span v-if="analysis.info" class="metadata-badge">
-                {{ analysis.info.dimensions[0] }}x{{ analysis.info.dimensions[1] }}px
-              </span>
-            </div>
-            
-            <!-- Resize Info Overlay -->
-            <div v-if="analysis.info && analysis.info.was_resized" class="absolute bottom-2 left-2 bg-yellow-600 bg-opacity-90 text-white text-xs px-3 py-1 rounded-full">
-              📏 Otimizada automaticamente
-            </div>
-          </div>
-        </div>
-        
-        <!-- Image Details -->
-        <div class="mt-4 grid grid-cols-2 gap-4 text-sm">
-          <div>
-            <span class="text-gray-500">Tamanho:</span>
-            <span class="ml-2 font-medium">{{ formatFileSize(analysis.file_size) }}</span>
-          </div>
-          <div>
-            <span class="text-gray-500">Enviado em:</span>
-            <span class="ml-2 font-medium">{{ formatDate(analysis.upload_date) }}</span>
-          </div>
-        </div>
-        
-        <!-- Resize Information (se foi redimensionada) -->
-        <div v-if="analysis.info && analysis.info.was_resized" class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <div class="flex items-center space-x-2 text-yellow-800">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span class="font-medium text-sm">Imagem Otimizada Automaticamente</span>
-          </div>
-          <div class="mt-2 text-sm text-yellow-700">
-            <p><strong>Dimensões originais:</strong> {{ analysis.info.original_dimensions?.[0] }}x{{ analysis.info.original_dimensions?.[1] }}px</p>
-            <p><strong>Dimensões atuais:</strong> {{ analysis.info.dimensions[0] }}x{{ analysis.info.dimensions[1] }}px</p>
-            <p class="mt-1 text-xs">A imagem foi redimensionada automaticamente para otimizar a análise de IA, mantendo a qualidade e proporção originais.</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Analysis Section - Modernizada com Tabs -->
-      <div class="card">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-medium text-gray-900">Análise de IA</h3>
-        </div>
-        
-        <!-- Tabs de Análise -->
-        <div v-if="hasGeminiAnalysis || hasHFAnalysis" class="analysis-tabs">
-          <button
-            v-if="hasGeminiAnalysis"
-            :class="['tab-btn', { active: activeTab === 'gemini' }]"
-            @click="activeTab = 'gemini'"
-          >
-            <span>🌟</span>
-            <span>Gemini AI</span>
-          </button>
-          <button
-            v-if="hasHFAnalysis"
-            :class="['tab-btn', { active: activeTab === 'hf' }]"
-            @click="activeTab = 'hf'"
-          >
-            <span>🤗</span>
-            <span>Hugging Face</span>
-          </button>
-          <button
-            :class="['tab-btn', { active: activeTab === 'metadata' }]"
-            @click="activeTab = 'metadata'"
-          >
-            <span>📊</span>
-            <span>Metadados</span>
-          </button>
-        </div>
-        
-        <!-- Processing State with Progress -->
-        <div v-if="analysis.status === 'processing'" class="space-y-4">
-          <div class="flex items-center space-x-2 text-yellow-600">
-            <svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            <div>
-              <span class="text-sm font-medium">Processando com IA...</span>
-              <p class="text-xs text-gray-500">Isso pode levar até 2 minutos. Por favor, aguarde.</p>
-            </div>
-          </div>
-          
-          <!-- Progress Bar -->
-          <div class="w-full bg-gray-200 rounded-full h-2">
-            <div class="bg-yellow-500 h-2 rounded-full animate-pulse" style="width: 100%"></div>
-          </div>
-          
-          <!-- Processing Steps -->
-          <div class="space-y-2 text-sm">
-            <div class="flex items-center space-x-2 text-gray-600">
-              <div class="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span>Imagem carregada e validada</span>
-            </div>
-            <div class="flex items-center space-x-2 text-gray-600">
-              <div class="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
-              <span>Enviando para análise de IA...</span>
-            </div>
-            <div class="flex items-center space-x-2 text-gray-400">
-              <div class="w-2 h-2 bg-gray-300 rounded-full"></div>
-              <span>Processando resultados</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- No Analysis State -->
-        <div v-if="!analysis.results.gemini && analysis.status !== 'processing'" 
-             class="text-center py-8">
-          <div class="mx-auto w-16 h-16 text-gray-300 mb-4">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" 
-                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-            </svg>
-          </div>
-          <h4 class="text-lg font-medium text-gray-900 mb-2">Nenhuma análise disponível</h4>
-          <p class="text-gray-600 mb-4">Execute uma análise para ver os resultados</p>
-          <button
-            @click="analyzeImage"
-            :disabled="loading"
-            class="btn-primary"
-          >
-            Iniciar Análise
-          </button>
-        </div>
-
-        <!-- Analysis Results - Com Tabs -->
-        <div v-else-if="hasGeminiAnalysis || hasHFAnalysis" class="tab-content">
-          <!-- Tab Panel: Gemini -->
-          <div v-if="activeTab === 'gemini' && hasGeminiAnalysis" class="tab-panel">
-            <div class="bg-gray-50 rounded-lg p-4">
-              <div class="flex items-center justify-between mb-3">
-                <h4 class="text-sm font-medium text-gray-900">Análise Médica Especializada</h4>
-                <span class="badge-with-dot">
-                  <span class="badge-dot success"></span>
-                  <span class="text-xs text-gray-600">Gemini AI</span>
-                </span>
-              </div>
-              
-              <div class="markdown-content prose prose-sm max-w-none">
-                <div v-html="renderMarkdown(analysis.results.gemini || '')"></div>
-              </div>
-            </div>
-          </div>
-          
-          <!-- Tab Panel: Hugging Face -->
-          <div v-if="activeTab === 'hf' && hasHFAnalysis" class="tab-panel">
-            <div class="bg-gray-50 rounded-lg p-4">
-              <div class="flex items-center justify-between mb-3">
-                <h4 class="text-sm font-medium text-gray-900">Análise Computacional</h4>
-                <span class="badge-with-dot">
-                  <span class="badge-dot warning"></span>
-                  <span class="text-xs text-gray-600">Hugging Face / OpenCV</span>
-                </span>
-              </div>
-              
-              <div class="markdown-content prose prose-sm max-w-none">
-                <div v-html="renderMarkdown(analysis.results.gpt4v || '')"></div>
-              </div>
-            </div>
-          </div>
-          
-          <!-- Tab Panel: Metadados -->
-          <div v-if="activeTab === 'metadata'" class="tab-panel">
-            <div class="glass-card p-4">
-              <h4 class="text-sm font-medium text-gray-900 mb-4">Informações Técnicas</h4>
-              
-              <div class="space-y-3">
-                <div class="meta-item">
-                  <span class="meta-label">ID da Análise</span>
-                  <span class="meta-value">#{{ analysis.id }}</span>
-                </div>
-                
-                <div class="meta-item">
-                  <span class="meta-label">Nome do Arquivo</span>
-                  <span class="meta-value">{{ analysis.original_filename }}</span>
-                </div>
-                
-                <div class="meta-item">
-                  <span class="meta-label">Tamanho</span>
-                  <span class="meta-value">{{ formatFileSize(analysis.file_size) }}</span>
-                </div>
-                
-                <div class="meta-item">
-                  <span class="meta-label">Upload</span>
-                  <span class="meta-value">{{ formatDate(analysis.upload_date) }}</span>
-                </div>
-                
-                <div v-if="analysis.processing_date" class="meta-item">
-                  <span class="meta-label">Processamento</span>
-                  <span class="meta-value">{{ formatDate(analysis.processing_date) }}</span>
-                </div>
-                
-                <div v-if="analysis.info" class="meta-item">
-                  <span class="meta-label">Dimensões</span>
-                  <span class="meta-value">
-                    {{ analysis.info.dimensions[0] }} x {{ analysis.info.dimensions[1] }}px
+        <!-- Coluna Esquerda: Imagem (Miniatura) - 2 colunas -->
+        <div class="lg:col-span-2">
+          <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <!-- Header da Imagem -->
+            <div class="px-4 py-3 border-b border-gray-200 bg-gray-50">
+              <div class="flex items-center justify-between">
+                <h2 class="text-sm font-semibold text-gray-900">Prévia da Imagem</h2>
+                <div class="flex items-center space-x-3 text-xs text-gray-500">
+                  <span class="flex items-center">
+                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    {{ formatFileSize(analysis.file_size) }}
+                  </span>
+                  <span class="flex items-center">
+                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                    {{ getImageDimensions() }}
                   </span>
                 </div>
-                
-                <div v-if="analysis.info?.original_dimensions" class="meta-item">
-                  <span class="meta-label">Dimensões Originais</span>
-                  <span class="meta-value">
-                    {{ analysis.info?.original_dimensions?.[0] }} x {{ analysis.info?.original_dimensions?.[1] }}px
-                  </span>
-                </div>
-                
-                <div v-if="analysis.info" class="meta-item">
-                  <span class="meta-label">Formato</span>
-                  <span class="meta-value">{{ analysis.info.format }}</span>
-                </div>
-                
-                <div v-if="analysis.info" class="meta-item">
-                  <span class="meta-label">Modo de Cor</span>
-                  <span class="meta-value">{{ analysis.info.mode }}</span>
-                </div>
-                
-                <div v-if="analysis.info" class="meta-item">
-                  <span class="meta-label">Otimizada</span>
-                  <span class="meta-value">{{ analysis.info.is_optimized ? '✅ Sim' : '❌ Não' }}</span>
-                </div>
-                
-                <div v-if="analysis.info" class="meta-item">
-                  <span class="meta-label">Redimensionada</span>
-                  <span class="meta-value">{{ analysis.info.was_resized ? '✅ Sim' : '❌ Não' }}</span>
+              </div>
+            </div>
+            
+            <!-- Imagem -->
+            <div class="relative bg-gray-100">
+              <div class="flex items-center justify-center min-h-[200px] max-h-[300px] p-4">
+                <img
+                  id="analysis-thumbnail"
+                  :src="getImageUrl(analysis.filename)"
+                  :alt="analysis.original_filename"
+                  class="rounded-lg shadow-lg transition-transform duration-200 hover:scale-105"
+                  style="max-width: 300px; max-height: 250px; width: auto; height: auto; object-fit: contain;"
+                  @load="onImageLoad"
+                />
+              </div>
+              
+              <!-- Controles de Imagem -->
+              <div class="absolute top-2 right-2 flex space-x-1">
+                <button
+                  @click="zoomIn"
+                  class="group p-2 bg-white/90 hover:bg-white text-gray-600 hover:text-gray-900 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  title="Aumentar zoom"
+                >
+                  <svg class="w-4 h-4 transition-transform duration-200 group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                  </svg>
+                </button>
+                <button
+                  @click="zoomOut"
+                  class="group p-2 bg-white/90 hover:bg-white text-gray-600 hover:text-gray-900 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  title="Diminuir zoom"
+                >
+                  <svg class="w-4 h-4 transition-transform duration-200 group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7" />
+                  </svg>
+                </button>
+                <button
+                  @click="rotateImage"
+                  class="group p-2 bg-white/90 hover:bg-white text-gray-600 hover:text-gray-900 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  title="Rotacionar imagem"
+                >
+                  <svg class="w-4 h-4 transition-transform duration-200 group-hover:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </button>
+                <button
+                  @click="resetImage"
+                  class="group p-2 bg-white/90 hover:bg-white text-gray-600 hover:text-gray-900 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  title="Resetar imagem"
+                >
+                  <svg class="w-4 h-4 transition-transform duration-200 group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </button>
+              </div>
+              
+              <!-- Indicador de Miniatura -->
+              <div class="absolute bottom-2 right-2">
+                <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white text-xs px-3 py-1 rounded-full shadow-lg font-medium">
+                  Miniatura
                 </div>
               </div>
             </div>
           </div>
+        </div>
+        
+        <!-- Coluna Direita: Análise - 3 colunas -->
+        <div class="lg:col-span-3">
           
-          <!-- Analysis Actions -->
-          <div v-if="hasGeminiAnalysis || hasHFAnalysis" class="flex items-center justify-between pt-4 mt-4 border-t border-gray-200">
-            <div class="flex items-center space-x-2 text-sm text-gray-500">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span>Processado em {{ formatDate(analysis.processing_date || '') }}</span>
+          <!-- Métodos de Análise - Layout Compacto -->
+          <div class="analysis-methods-compact">
+            <div class="mb-4">
+              <h3 class="text-lg font-semibold text-gray-900 mb-1">Análise com IA</h3>
+              <p class="text-sm text-gray-600">Escolha o método de análise</p>
             </div>
             
-            <div class="flex items-center space-x-2">
+            <!-- Gemini AI - Linha Compacta -->
+            <div class="method-row">
+              <div class="method-info">
+                <div class="method-icon-bg">
+                  <svg class="method-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                  </svg>
+                </div>
+                <div class="method-details">
+                  <div class="method-title-row">
+                    <h4 class="method-title">Gemini AI</h4>
+                    <span class="method-badge">Recomendado</span>
+                  </div>
+                  <p class="method-description">Classificação BI-RADS e detecção de anomalias</p>
+                </div>
+              </div>
               <button
-                @click="copyAnalysis"
-                class="text-sm text-primary-600 hover:text-primary-700 font-medium"
+                @click="analyzeImage"
+                :disabled="loading"
+                class="btn-analyze-compact btn-gemini"
               >
-                Copiar Análise
+                <svg v-if="!loading" class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                </svg>
+                <svg v-else class="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span v-if="!loading">Analisar</span>
+                <span v-else>Analisando...</span>
               </button>
+            </div>
+            
+            <!-- Hugging Face - Linha Compacta -->
+            <div class="method-row">
+              <div class="method-info">
+                <div class="method-icon-bg method-icon-hf">
+                  <svg class="method-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div class="method-details">
+                  <h4 class="method-title">Hugging Face</h4>
+                  <p class="method-description">Análise computacional com processamento OpenCV</p>
+                </div>
+              </div>
               <button
-                @click="downloadAnalysis"
-                class="text-sm text-primary-600 hover:text-primary-700 font-medium"
+                @click="analyzeImageHF"
+                :disabled="loading"
+                class="btn-analyze-compact btn-hf"
               >
-                Baixar PDF
+                <svg v-if="!loading" class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <svg v-else class="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span v-if="!loading">Analisar</span>
+                <span v-else>Analisando...</span>
               </button>
+            </div>
+            
+            <!-- Dica Compacta -->
+            <div class="tip-compact">
+              <div class="tip-icon">💡</div>
+              <span>Use ambas as IAs para uma análise mais completa e precisa</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Resultados da Análise - Largura Total -->
+      <div class="mt-6">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+          <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-900">Resultados da Análise</h3>
+          </div>
+          
+          <div class="p-6">
+            <div v-if="!hasAnalysis" class="text-center py-6">
+              <div class="w-12 h-12 bg-gradient-to-br from-blue-100 to-blue-50 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm empty-state-icon">
+                <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <h4 class="text-xl font-semibold text-gray-800 mb-2">
+                Nenhuma análise realizada
+              </h4>
+              <p class="text-sm text-gray-600 max-w-md mx-auto">
+                Selecione um método de análise acima (Gemini AI ou Hugging Face) para começar
+              </p>
+            </div>
+            
+            <div v-else class="space-y-6">
+              <!-- Tabs de Análise -->
+              <div class="border-b border-gray-200">
+                <nav class="-mb-px flex space-x-1">
+                  <button
+                    v-for="tab in analysisTabs"
+                    :key="tab.id"
+                    @click="activeTab = tab.id"
+                    :class="[
+                      'group relative py-3 px-6 border-b-2 font-semibold text-sm transition-all duration-200 rounded-t-lg',
+                      activeTab === tab.id
+                        ? 'border-blue-500 text-blue-600 bg-blue-50 shadow-sm'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50'
+                    ]"
+                  >
+                    <span class="relative z-10">{{ tab.name }}</span>
+                    <!-- Indicador ativo -->
+                    <div v-if="activeTab === tab.id" class="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-8 h-0.5 bg-blue-500 rounded-full"></div>
+                    <!-- Efeito de hover -->
+                    <div v-if="activeTab !== tab.id" class="absolute inset-0 bg-gradient-to-r from-transparent via-gray-100 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-t-lg"></div>
+                  </button>
+                </nav>
+              </div>
+              
+              <!-- Conteúdo da Tab Ativa -->
+              <div class="prose prose-sm max-w-none">
+                <div v-html="getActiveAnalysisContent()"></div>
+              </div>
             </div>
           </div>
         </div>
-
-        <!-- Error State -->
-        <div v-else-if="analysis.status === 'error'" class="text-center py-8">
-          <div class="mx-auto w-16 h-16 text-red-300 mb-4">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" 
-                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <h4 class="text-lg font-medium text-gray-900 mb-2">Erro na Análise</h4>
-          <p class="text-gray-600 mb-4">{{ analysis.error_message || 'Ocorreu um erro durante a análise' }}</p>
-          <button
-            @click="retryAnalysis"
-            :disabled="loading"
-            class="btn-primary"
-          >
-            Tentar Novamente
-          </button>
-        </div>
       </div>
     </div>
 
-    <!-- Additional Actions -->
-    <div class="flex items-center justify-between pt-6 border-t border-gray-200">
-      <button
-        @click="goBack"
-        class="btn-secondary flex items-center space-x-2"
-      >
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                d="M15 19l-7-7 7-7" />
-        </svg>
-        <span>Voltar</span>
-      </button>
-      
-      <div class="flex items-center space-x-2">
-        <button
-          @click="confirmDelete"
-          class="btn-danger"
-        >
-          Excluir Análise
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Loading State -->
-  <div v-else-if="loading" class="text-center py-12">
-    <div class="inline-flex items-center space-x-2 text-gray-500">
-      <svg class="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-      </svg>
-      <span>Carregando análise...</span>
-    </div>
-  </div>
-
-  <!-- Not Found State -->
-  <div v-else class="text-center py-12">
-    <div class="mx-auto w-24 h-24 text-gray-300 mb-4">
-      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" 
-              d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-      </svg>
-    </div>
-    <h3 class="text-lg font-medium text-gray-900 mb-2">Análise não encontrada</h3>
-    <p class="text-gray-600 mb-4">A análise solicitada não foi encontrada</p>
-    <button @click="goBack" class="btn-primary">
-      Voltar para Lista
-    </button>
   </div>
 </template>
 
+
 <script setup lang="ts">
-import { useToast } from '@/composables/useToast'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import apiService from '@/services/api'
 import { useAnalysisStore } from '@/stores/analysis'
 import { marked } from 'marked'
-import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { formatFileSize, formatDate, getStatusBadgeClass, getStatusText, handleImageError } from '@/utils'
 
+// Props
 const props = defineProps<{
-  analysisId: number
+  analysisId: string
 }>()
 
+// Emits
+const emit = defineEmits<{
+  'analysis-loaded': [analysis: Analysis]
+}>()
+
+// Composables
 const router = useRouter()
 const analysisStore = useAnalysisStore()
-const { success } = useToast()
 
-// Refs para Image Viewer
-const zoomableImage = ref<HTMLImageElement>()
-const zoomLevel = ref(1)
-const isZoomed = ref(false)
-const activeTab = ref<'gemini' | 'hf' | 'metadata' | 'compare'>('gemini')
+// Types
+interface Analysis {
+  id: number
+  filename: string
+  original_filename: string
+  file_size: number
+  upload_date: string
+  status: string
+  gemini_analysis?: string
+  gpt4v_analysis?: string
+  info?: {
+    dimensions: [number, number]
+  }
+}
+
+// State
+const analysis = ref<Analysis | null>(null)
+const loading = ref(false)
+const activeTab = ref('gemini')
+const showAnalysisOptions = ref(false)
 
 // Computed
-const analysis = computed(() => analysisStore.currentAnalysis)
-const loading = computed(() => analysisStore.loading)
-const hasGeminiAnalysis = computed(() => {
-  return analysis.value?.results?.gemini && analysis.value.results.gemini.trim() !== ''
+const hasAnalysis = computed(() => {
+  return analysis.value && (analysis.value.gemini_analysis || analysis.value.gpt4v_analysis)
 })
-const hasHFAnalysis = computed(() => {
-  return analysis.value?.results?.gpt4v && analysis.value.results.gpt4v.trim() !== ''
+
+const analysisTabs = computed(() => {
+  const tabs = []
+  if (analysis.value?.gemini_analysis) {
+    tabs.push({ id: 'gemini', name: 'Gemini AI' })
+  }
+  if (analysis.value?.gpt4v_analysis) {
+    tabs.push({ id: 'huggingface', name: 'Hugging Face' })
+  }
+  return tabs
 })
 
 // Methods
-async function loadAnalysis() {
-  await analysisStore.fetchAnalysis(props.analysisId)
-}
 
-async function analyzeImage() {
+const analyzeImage = async () => {
+  if (!analysis.value) return
   try {
-    await analysisStore.analyzeImage(props.analysisId)
+    loading.value = true
+    await analysisStore.analyzeImage(analysis.value.id)
+    await loadAnalysis()
   } catch (error) {
-    console.error('Erro na análise:', error)
+    console.error('Erro na análise com Gemini:', error)
+  } finally {
+    loading.value = false
   }
 }
 
-async function analyzeImageHF() {
+const analyzeImageHF = async () => {
+  if (!analysis.value) return
   try {
-    await analysisStore.analyzeImage(props.analysisId, true) // true = use HuggingFace
+    loading.value = true
+    // Usar endpoint específico do Hugging Face
+    await fetch(`/api/v1/analyze-huggingface/${analysis.value.id}`, { method: 'POST' })
+    await loadAnalysis()
   } catch (error) {
-    console.error('Erro na análise com HuggingFace:', error)
+    console.error('Erro na análise com Hugging Face:', error)
+  } finally {
+    loading.value = false
   }
 }
 
-async function retryAnalysis() {
+const loadAnalysis = async () => {
   try {
-    await analysisStore.analyzeImage(props.analysisId)
+    const data = await apiService.getAnalysis(parseInt(props.analysisId))
+    analysis.value = data as Analysis
+    emit('analysis-loaded', analysis.value)
   } catch (error) {
-    console.error('Erro na nova tentativa:', error)
+    console.error('Erro ao carregar análise:', error)
   }
 }
 
-function getImageUrl(filename: string): string {
+const getImageUrl = (filename: string) => {
   return apiService.getImageUrl(filename)
 }
 
-function handleImageError(event: Event) {
-  const img = event.target as HTMLImageElement
-  img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0yNCAyNEg0MFY0MEgyNFYyNFoiIGZpbGw9IiNEMUQ1REIiLz4KPC9zdmc+'
-}
-
-function getStatusBadgeClass(status: string): string {
-  const classes = {
-    uploaded: 'status-badge status-uploaded',
-    processing: 'status-badge status-processing',
-    completed: 'status-badge status-completed',
-    error: 'status-badge status-error'
+const getImageDimensions = () => {
+  if (analysis.value?.info?.dimensions) {
+    const [width, height] = analysis.value.info.dimensions
+    return `${width}x${height}px`
   }
-  return classes[status as keyof typeof classes] || 'status-badge status-uploaded'
+  return 'N/A'
 }
 
-function getStatusText(status: string): string {
-  const texts = {
-    uploaded: 'Enviado',
-    processing: 'Processando',
-    completed: 'Concluído',
-    error: 'Erro'
+
+const getActiveAnalysisContent = () => {
+  if (activeTab.value === 'gemini' && analysis.value?.gemini_analysis) {
+    return marked(analysis.value.gemini_analysis)
   }
-  return texts[status as keyof typeof texts] || status
+  if (activeTab.value === 'huggingface' && analysis.value?.gpt4v_analysis) {
+    return marked(analysis.value.gpt4v_analysis)
+  }
+  return '<p>Nenhuma análise disponível</p>'
 }
 
-function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 Bytes'
-  
-  const k = 1024
-  const sizes = ['Bytes', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+// Image controls
+const imageTransform = ref({
+  scale: 1,
+  rotation: 0
+})
+
+const zoomIn = () => {
+  imageTransform.value.scale = Math.min(imageTransform.value.scale * 1.2, 3)
+  applyImageTransform()
 }
 
-function formatDate(dateString: string): string {
-  if (!dateString) return ''
-  
-  const date = new Date(dateString)
-  return date.toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+const zoomOut = () => {
+  imageTransform.value.scale = Math.max(imageTransform.value.scale / 1.2, 0.5)
+  applyImageTransform()
 }
 
-function goBack() {
-  router.back()
+const rotateImage = () => {
+  imageTransform.value.rotation = (imageTransform.value.rotation + 90) % 360
+  applyImageTransform()
 }
 
-async function confirmDelete() {
-  if (!analysis.value) return
-  
-  const confirmed = confirm(
-    `Tem certeza que deseja excluir a análise "${analysis.value.original_filename}"?\n\n` +
-    'Esta ação não pode ser desfeita e removerá permanentemente:\n' +
-    '• O arquivo da imagem\n' +
-    '• Todos os dados da análise\n' +
-    '• Resultados das APIs'
-  )
-  
-  if (confirmed) {
-    try {
-      await analysisStore.deleteAnalysis(props.analysisId)
-      router.push('/analyses')
-    } catch (error) {
-      console.error('Erro ao excluir análise:', error)
-    }
+const resetImage = () => {
+  imageTransform.value = { scale: 1, rotation: 0 }
+  applyImageTransform()
+}
+
+const applyImageTransform = () => {
+  const img = document.getElementById('analysis-thumbnail') as HTMLImageElement
+  if (img) {
+    img.style.transform = `scale(${imageTransform.value.scale}) rotate(${imageTransform.value.rotation}deg)`
   }
 }
 
-function copyAnalysis() {
-  let textToCopy = ''
-  
-  if (activeTab.value === 'gemini' && analysis.value?.results.gemini) {
-    textToCopy = analysis.value.results.gemini
-  } else if (activeTab.value === 'hf' && analysis.value?.results.gpt4v) {
-    textToCopy = analysis.value.results.gpt4v
-  } else if (activeTab.value === 'metadata' && analysis.value) {
-    textToCopy = `Metadados - Análise #${analysis.value.id}\n` +
-                 `Arquivo: ${analysis.value.original_filename}\n` +
-                 `Tamanho: ${formatFileSize(analysis.value.file_size)}\n` +
-                 `Upload: ${formatDate(analysis.value.upload_date)}`
-  }
-  
-  if (textToCopy) {
-    navigator.clipboard.writeText(textToCopy)
-    success('Copiado!', 'Conteúdo copiado para a área de transferência')
-  }
-}
-
-function downloadAnalysis() {
-  let content = ''
-  let filename = `analise-${analysis.value?.id}`
-  
-  if (activeTab.value === 'gemini' && analysis.value?.results.gemini) {
-    content = `Análise de Mamografia - ${analysis.value.original_filename}\n\nGemini AI\n${'='.repeat(50)}\n\n${analysis.value.results.gemini}`
-    filename += '-gemini.txt'
-  } else if (activeTab.value === 'hf' && analysis.value?.results.gpt4v) {
-    content = `Análise de Mamografia - ${analysis.value.original_filename}\n\nHugging Face\n${'='.repeat(50)}\n\n${analysis.value.results.gpt4v}`
-    filename += '-hf.txt'
-  } else if (analysis.value?.results.gemini) {
-    content = `Análise de Mamografia - ${analysis.value.original_filename}\n\n${analysis.value.results.gemini}`
-    filename += '.txt'
-  }
-  
-  if (content) {
-    const blob = new Blob([content], { type: 'text/plain' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-}
-
-// Image Viewer Functions
-function zoomIn() {
-  if (zoomLevel.value < 3) {
-    zoomLevel.value += 0.25
-    isZoomed.value = true
-  }
-}
-
-function zoomOut() {
-  if (zoomLevel.value > 1) {
-    zoomLevel.value -= 0.25
-    if (zoomLevel.value <= 1) {
-      zoomLevel.value = 1
-      isZoomed.value = false
-    }
-  }
-}
-
-function resetZoom() {
-  zoomLevel.value = 1
-  isZoomed.value = false
-}
-
-function toggleZoom() {
-  if (isZoomed.value) {
-    resetZoom()
-  } else {
-    zoomLevel.value = 2
-    isZoomed.value = true
-  }
-}
-
-function downloadImage() {
-  if (analysis.value?.filename) {
-    const link = document.createElement('a')
-    link.href = getImageUrl(analysis.value.filename)
-    link.download = analysis.value.original_filename || 'mamografia.jpg'
-    link.click()
-  }
-}
-
-function renderMarkdown(text: string): string {
-  try {
-    return marked(text) as string
-  } catch (error) {
-    console.error('Erro ao renderizar markdown:', error)
-    return text
-  }
-}
-
-const copyResult = async (type: string) => {
-  try {
-    if (!analysis.value) return
-    
-    const text = type === 'gemini' 
-      ? analysis.value.results.gemini 
-      : analysis.value.results.gpt4v
-    
-    if (text) {
-      await navigator.clipboard.writeText(text)
-      success('Resultado copiado para a área de transferência!', 'success')
-    }
-  } catch (error) {
-    console.error('Erro ao copiar:', error)
-  }
-}
-
-const downloadResult = (type: string) => {
-  if (!analysis.value) return
-  
-  const text = type === 'gemini' 
-    ? analysis.value.results.gemini 
-    : analysis.value.results.gpt4v
-  
-  if (!text) return
-  
-  const filename = `${analysis.value.original_filename || 'mamografia'}_${type}_analysis.txt`
-  
-  const blob = new Blob([text], { type: 'text/plain' })
-  const link = document.createElement('a')
-  link.href = URL.createObjectURL(blob)
-  link.download = filename
-  link.click()
-  
-  success(`Relatório ${type} baixado com sucesso!`, 'success')
+const onImageLoad = () => {
+  // Implementar callback de carregamento
 }
 
 // Lifecycle
