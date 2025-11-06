@@ -400,11 +400,20 @@ const getImageUrl = (filename: string) => {
 }
 
 const getImageDimensions = () => {
-  if (analysis.value?.info?.dimensions) {
-    const [width, height] = analysis.value.info.dimensions
-    return `${width}x${height}px`
+  const dimensions = analysis.value?.info?.dimensions
+  if (!dimensions || dimensions.length < 2) {
+    return 'Dimensões indisponíveis'
   }
-  return 'N/A'
+
+  const [widthRaw, heightRaw] = dimensions
+  const width = Number(widthRaw)
+  const height = Number(heightRaw)
+
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return 'Dimensões indisponíveis'
+  }
+
+  return `${width}x${height}px`
 }
 
 

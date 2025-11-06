@@ -8,14 +8,31 @@
  * @param bytes - Tamanho em bytes
  * @returns String formatada (ex: "1.5 MB")
  */
-export function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 Bytes'
-  
+export function formatFileSize(bytes: number | string | null | undefined): string {
+  if (bytes === null || bytes === undefined) {
+    return 'Tamanho indisponível'
+  }
+
+  const numericValue = typeof bytes === 'string' ? Number(bytes) : bytes
+
+  if (!Number.isFinite(numericValue) || numericValue < 0) {
+    return 'Tamanho indisponível'
+  }
+
+  if (numericValue === 0) {
+    return '0 Bytes'
+  }
+
   const k = 1024
-  const sizes = ['Bytes', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB']
+  const i = Math.min(Math.floor(Math.log(numericValue) / Math.log(k)), sizes.length - 1)
+  const value = numericValue / Math.pow(k, i)
+
+  const formattedValue = value >= 10 || i === 0
+    ? value.toFixed(0)
+    : value.toFixed(2)
+
+  return `${formattedValue} ${sizes[i]}`
 }
 
 /**
@@ -24,9 +41,21 @@ export function formatFileSize(bytes: number): string {
  * @returns String formatada (ex: "25/12/2024 14:30")
  */
 export function formatDate(dateString: string): string {
-  if (!dateString) return ''
-  
-  const date = new Date(dateString)
+  if (!dateString) return 'Data indisponível'
+
+  const normalizedString = dateString.trim()
+  if (!normalizedString) return 'Data indisponível'
+
+  const isoLikeString = normalizedString.includes('T')
+    ? normalizedString
+    : normalizedString.replace(' ', 'T')
+
+  const date = new Date(isoLikeString)
+
+  if (Number.isNaN(date.getTime())) {
+    return 'Data inválida'
+  }
+
   return date.toLocaleDateString('pt-BR', {
     day: '2-digit',
     month: '2-digit',

@@ -90,6 +90,7 @@
 <script setup lang="ts">
 import AnalysisDetail from '@/components/AnalysisDetail.vue';
 import { useAnalysisStore } from '@/stores/analysis';
+import { formatDate, getStatusBadgeClass, getStatusText } from '@/utils';
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
@@ -122,7 +123,7 @@ interface Analysis {
 const analysisId = computed(() => {
   const id = parseInt(props.id)
   if (isNaN(id) || id <= 0) {
-    console.error('❌ ID de análise inválido:', props.id)
+    console.error('ID de análise inválido:', props.id)
     return null
   }
   return id
@@ -143,36 +144,6 @@ async function confirmDelete() {
       console.error('Erro ao excluir análise:', error)
     }
   }
-}
-
-const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
-
-const getStatusBadgeClass = (status: string) => {
-  const classes: Record<string, string> = {
-    uploaded: 'bg-blue-100 text-blue-800',
-    processing: 'bg-yellow-100 text-yellow-800',
-    completed: 'bg-green-100 text-green-800',
-    error: 'bg-red-100 text-red-800'
-  }
-  return classes[status] || 'bg-gray-100 text-gray-800'
-}
-
-const getStatusText = (status: string) => {
-  const texts: Record<string, string> = {
-    uploaded: 'Enviado',
-    processing: 'Processando',
-    completed: 'Concluído',
-    error: 'Erro'
-  }
-  return texts[status] || status
 }
 
 // Expose analysis to child component
