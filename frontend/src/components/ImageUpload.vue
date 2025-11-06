@@ -28,7 +28,7 @@
       <input
         ref="fileInput"
         type="file"
-        accept="image/*"
+        accept="image/*,.pgm" 
         @change="handleFileSelect"
         class="hidden"
         :disabled="loading"
@@ -47,7 +47,7 @@
             {{ isDragOver ? 'Solte a imagem aqui' : 'Clique ou arraste uma imagem' }}
           </p>
           <p class="text-sm text-gray-500 mt-1">
-            Formatos suportados: PNG, JPG, JPEG, TIFF, BMP
+            Formatos suportados: PNG, JPG, JPEG, TIFF, BMP e PGM
           </p>
           <p class="text-xs text-gray-400 mt-1">
             Tamanho máximo: 10MB
@@ -218,9 +218,21 @@ function selectFile(file: File) {
   analysisStore.clearError()
   
   // Validar tipo de arquivo
-  const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/tiff', 'image/bmp']
-  if (!allowedTypes.includes(file.type)) {
-    analysisStore.error = 'Tipo de arquivo não suportado. Use PNG, JPG, JPEG, TIFF ou BMP'
+  const allowedTypes = [
+    'image/png', 
+    'image/jpeg', 
+    'image/jpg',
+    'image/x-portable-graymap',  // Tipo MIME para PGM
+    'application/octet-stream'   // Alguns sistemas identificam PGM assim
+  ]
+  
+  // Verificar extensão do arquivo
+  const allowedExtensions = ['.png', '.jpg', '.jpeg', '.pgm', '.dcm']
+  const fileExtension = file.name.toLowerCase().match(/\.[^.]*$/)?.[0]
+  
+  if (!allowedTypes.includes(file.type) && 
+      (!fileExtension || !allowedExtensions.includes(fileExtension))) {
+    analysisStore.error = 'Tipo de arquivo não suportado. Use PNG, JPG, JPEG ou PGM'
     return
   }
 

@@ -111,123 +111,122 @@ class AIService:
             # Configurar a API
             genai.configure(api_key=self.gemini_api_key)
             
-            # Configurar o modelo
-            model = genai.GenerativeModel('gemini-2.0-flash')
+            # Alterar o modelo aqui
+            model = genai.GenerativeModel('gemini-2.5-pro') 
             
             # Pré-processar imagem para melhor análise
             processed_image_path = self.preprocess_image(image_path)
             
             # Prompt otimizado para detecção de câncer de mama em estágios iniciais
             prompt = """
-            Analise esta imagem de mamografia com foco na detecção precoce de alterações que podem indicar câncer de mama em estágios iniciais. Forneça uma análise técnica detalhada em português brasileiro, formatada em Markdown.
+                    🧠 Prompt Detalhado — Análise de Mamografia (Formato MIAS)
 
-            # ESTRUTURA DA ANÁLISE (use exatamente este formato):
+                    Você é uma inteligência artificial especializada em análise de imagens médicas, com foco em mamografias.
+                    Sua tarefa é analisar a imagem fornecida e gerar uma descrição estruturada no formato MIAS (Mammographic Image Analysis Society), conforme as especificações abaixo.
 
-            ## 1. QUALIDADE TÉCNICA DA IMAGEM
-            Avalie cada aspecto com nível de confiança (Alta/Média/Baixa):
-            - **Resolução e Nitidez**: [Descrever qualidade] - Confiança: [Alta/Média/Baixa]
-            - **Contraste e Brilho**: [Adequado para visualização de densidades?]
-            - **Artefatos**: [Presentes/Ausentes - descrever se houver]
-            - **Qualidade da Exposição**: [Avaliação da penetração dos raios-X]
+                    🩻 Objetivo
 
-            ## 2. ANATOMIA E POSICIONAMENTO
-            - **Estruturas Identificáveis**: [Listar tecido glandular, gordura, pele, etc.]
-            - **Posicionamento**: [Adequado/Inadequado - justificar]
-            - **Cobertura**: [Completa/Parcial do tecido mamário]
-            - **Simetria**: [Se aplicável]
+                    Identificar o tipo de tecido mamário predominante e classificar a presença, tipo, severidade e localização de eventuais anormalidades detectadas na mamografia.
 
-            ## 3. DENSIDADE E PADRÃO DO TECIDO
-            - **Classificação BI-RADS de Densidade**: [A/B/C/D]
-              - A: Predominantemente gorduroso
-              - B: Densidades fibroglandulares esparsas
-              - C: Heterogeneamente denso
-              - D: Extremamente denso
-            - **Distribuição**: [Homogênea/Heterogênea]
-            - **Padrões Anormais**: [Descrever áreas específicas]
+                    🧩 Formato de Saída Esperado
 
-            ## 4. ACHADOS PRIORITÁRIOS (⚠️ CRÍTICO)
-            
-            ### 🔴 ACHADOS CRÍTICOS (requerem atenção imediata):
-            [Liste aqui APENAS achados altamente suspeitos]
-            - [Achado 1]: Localização, características, nível de suspeita
-            
-            ### 🟡 ACHADOS IMPORTANTES (requerem investigação):
-            [Liste achados que merecem atenção mas não são imediatamente críticos]
-            - [Achado 1]: Descrição detalhada
-            
-            ### 🟢 OBSERVAÇÕES GERAIS:
-            [Liste características normais ou achados benignos]
+                    A resposta deve seguir exatamente este formato, com todos os campos preenchidos quando aplicáveis:
 
-            ## 5. CARACTERÍSTICAS ESPECÍFICAS DETECTADAS
+                    1. Referência MIAS: [identificador único do exame]
+                    2. Tipo de tecido de fundo: [F / G / D]
+                    3. Classe de anormalidade: [CALC / CIRC / SPIC / MISC / ARCH / ASYM / NORM]
+                    4. Severidade da anormalidade: [B / M]
+                    5. Coordenadas do centro da anormalidade: (x= , y= )
+                    6. Raio aproximado: [valor em pixels]
 
-            ### Microcalcificações
-            - **Presença**: [Sim/Não]
-            - **Padrão**: [Agrupadas/Lineares/Segmentais/Difusas]
-            - **Localização**: [Especificar quadrante/região]
-            - **Morfologia**: [Pontiformes/Pleomórficas/Lineares]
-            - **Suspeita**: [Alta/Média/Baixa]
 
-            ### Massas/Nódulos
-            - **Presença**: [Sim/Não]
-            - **Localização**: [Especificar]
-            - **Dimensões**: [Estimativa em mm se possível]
-            - **Bordas**: [Circunscritas/Irregulares/Espiculadas/Microlobuladas]
-            - **Densidade**: [Alta/Igual/Baixa em relação ao tecido]
-            - **Suspeita**: [Alta/Média/Baixa]
+                    Nota: Se não houver anormalidade (classe = NORM), omita os campos 4, 5 e 6.
 
-            ### Distorções Arquiteturais
-            - **Presença**: [Sim/Não]
-            - **Localização**: [Especificar]
-            - **Descrição**: [Detalhes do padrão alterado]
+                    🧬 1. Tipo de tecido de fundo (coluna 2 do formato MIAS)
 
-            ### Assimetrias
-            - **Presença**: [Sim/Não]
-            - **Tipo**: [Global/Focal/Em desenvolvimento]
-            - **Localização**: [Especificar]
+                    Classifique o tecido mamário predominante na imagem de acordo com as seguintes categorias:
 
-            ## 6. CLASSIFICAÇÃO BI-RADS SUGERIDA
-            **Categoria**: [0/1/2/3/4/5/6]
-            - 0: Avaliação adicional necessária
-            - 1: Negativo
-            - 2: Achado benigno
-            - 3: Provavelmente benigno
-            - 4: Anormalidade suspeita
-            - 5: Altamente sugestivo de malignidade
-            - 6: Malignidade comprovada por biópsia
+                    Código	Tipo	Descrição
+                    F	Fatty	Predominantemente gorduroso. O tecido aparece de forma homogênea e radiotransparente.
+                    G	Fatty-glandular	Misto: presença equilibrada de tecido gorduroso e glandular.
+                    D	Dense-glandular	Predominantemente denso, com alta radiopacidade devido à concentração glandular.
 
-            **Justificativa**: [Explicar categoria escolhida]
+                    Instrução para IA:
 
-            ## 7. RECOMENDAÇÕES
-            - [ ] **Imediatas**: [Ações urgentes se categoria BI-RADS ≥ 4]
-            - [ ] **Curto Prazo**: [Seguimento ou exames complementares]
-            - [ ] **Rotina**: [Seguimento normal se categoria BI-RADS ≤ 2]
+                    Analise a densidade geral da mama e determine se o tecido é Fatty (F), Fatty-glandular (G) ou Dense-glandular (D).
 
-            ## 8. LIMITAÇÕES DA ANÁLISE
-            - [Listar fatores que podem afetar a interpretação]
-            - [Áreas de visibilidade limitada]
-            - [Necessidade de imagens adicionais/complementares]
+                    ⚕️ 2. Classe de anormalidade (coluna 3 do formato MIAS)
 
-            ## 9. RESUMO EXECUTIVO
-            **Achados Principais**: [Resumo em 2-3 frases dos achados mais relevantes]
-            **Nível de Urgência**: [Baixo/Moderado/Alto/Crítico]
-            **Próximo Passo Recomendado**: [Ação específica]
+                    Identifique a principal anormalidade presente na mamografia. Se houver múltiplas, descreva a mais significativa (maior ou mais suspeita).
 
-            ---
+                    Código	Tipo de Lesão	Descrição
+                    CALC	Calcificação	Pequenas áreas brilhantes indicando depósitos de cálcio. Podem ser agrupadas ou difusas.
+                    CIRC	Massa circunscrita	Lesão bem definida, bordas regulares, aspecto arredondado.
+                    SPIC	Massa espiculada	Lesão com bordas irregulares, prolongamentos lineares, aspecto estrelado.
+                    MISC	Massa indefinida	Lesão não claramente circunscrita, sem contornos regulares.
+                    ARCH	Distorção arquitetural	Alteração do padrão normal do tecido mamário, sem massa definida.
+                    ASYM	Assimetria	Densidade assimétrica entre mamas ou quadrantes.
+                    NORM	Normal	Ausência de anormalidades detectáveis.
 
-            ## ⚠️ AVISO MÉDICO-LEGAL
-            Esta análise é uma ferramenta de **triagem computacional** e **NÃO substitui** a avaliação de um radiologista especializado em mastologia. Todos os achados devem ser interpretados por profissional médico qualificado. Em caso de dúvida, sempre optar por investigação adicional.
+                    Instrução para IA:
 
-            ---
+                    Detecte qualquer anormalidade presente na imagem e classifique-a em uma das categorias acima (CALC, CIRC, SPIC, MISC, ARCH, ASYM, NORM).
 
-            **INSTRUÇÕES IMPORTANTES**:
-            - Use SEMPRE formato Markdown com cabeçalhos ##
-            - Seja específico em localizações (quadrante, horário do relógio)
-            - Atribua níveis de confiança e suspeita quando relevante
-            - Priorize achados por criticidade (🔴🟡🟢)
-            - Forneça medidas estimadas quando possível
-            - Use terminologia BI-RADS quando aplicável
-            - NÃO forneça diagnóstico definitivo
-            - SEMPRE inclua limitações e recomendações
+                    🧪 3. Severidade da anormalidade (coluna 4 do formato MIAS)
+
+                    Determine o caráter benigno ou maligno da anormalidade identificada, com base nos padrões visuais da imagem.
+
+                    Código	Significado	Descrição
+                    B	Benigna	Lesão com margens suaves, simétricas e não invasivas.
+                    M	Maligna	Lesão com bordas irregulares, infiltração tecidual ou características suspeitas.
+
+                    Instrução para IA:
+
+                    Caso exista uma anormalidade, classifique sua severidade como Benigna (B) ou Maligna (M).
+                    Se a imagem for normal (NORM), este campo deve ser omitido.
+
+                    📍 4. Localização e dimensão da lesão (colunas 5–7 do formato MIAS)
+
+                    Forneça a localização e o tamanho aproximado da anormalidade, se aplicável.
+
+                    x, y: Coordenadas do centro da anormalidade, com a origem no canto inferior esquerdo da imagem.
+
+                    Raio (r): Tamanho aproximado da lesão, em pixels.
+
+                    Caso existam múltiplas anormalidades, selecione a mais representativa (maior ou mais suspeita).
+
+                    Se a anormalidade for difusa (como calcificações dispersas), omita x, y e raio.
+
+                    Instrução para IA:
+
+                    Determine as coordenadas centrais (x, y) e o raio aproximado da anormalidade principal.
+                    Se não houver lesão focal, deixe esses campos em branco.
+
+                    🧩 Exemplo de saída completa
+
+                    Analise a imagem de mamografia (referência mdb003) e descreva os achados conforme o formato MIAS.
+
+                    1. Referência MIAS: mdb003
+                    2. Tipo de tecido de fundo: G (Fatty-glandular)
+                    3. Classe de anormalidade: CALC (Calcificação)
+                    4. Severidade da anormalidade: B (Benigna)
+                    5. Coordenadas do centro da anormalidade: (x=350, y=580)
+                    6. Raio aproximado: 45 pixels
+
+                    ⚙️ Regras adicionais de formatação
+
+                    Sempre siga a ordem numérica dos campos (1–6).
+
+                    Inclua apenas valores coerentes e observáveis na imagem.
+
+                    Evite descrições narrativas: a saída deve ser estruturada e objetiva.
+
+                    Caso a imagem apresente nenhuma anormalidade, o resultado deve ser:
+
+                    1. Referência MIAS: [id]
+                    2. Tipo de tecido de fundo: [F/G/D]
+                    3. Classe de anormalidade: NORM
+
             """
             
             # Carregar e processar a imagem otimizada
