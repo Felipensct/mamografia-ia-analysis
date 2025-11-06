@@ -188,9 +188,9 @@
 import ImageUpload from '@/components/ImageUpload.vue'
 import apiService from '@/services/api'
 import { useAnalysisStore } from '@/stores/analysis'
+import { formatDate, getStatusDotClass, getStatusText, handleImageError } from '@/utils'
 import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { formatDate, getStatusDotClass, getStatusText, handleImageError } from '@/utils'
 
 const router = useRouter()
 const analysisStore = useAnalysisStore()
@@ -216,11 +216,18 @@ function viewAllAnalyses() {
 }
 
 function viewAnalysis(id: number) {
+  if (!id || isNaN(id) || id <= 0) {
+    console.error('❌ ID de análise inválido para navegação:', id)
+    return
+  }
+  console.log('🔄 Navegando para análise ID:', id)
   router.push(`/analysis/${id}`)
 }
 
 function getImageUrl(filename: string): string {
-  return apiService.getImageUrl(filename)
+  const url = apiService.getImageUrl(filename)
+  console.log('🖼️ URL da imagem gerada:', { filename, url })
+  return url
 }
 
 

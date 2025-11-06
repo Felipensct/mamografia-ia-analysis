@@ -15,6 +15,12 @@ export const IMAGE_PLACEHOLDER_SVG = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0i
  */
 export function handleImageError(event: Event): void {
   const img = event.target as HTMLImageElement
+  console.warn('⚠️ Erro ao carregar imagem:', {
+    src: img.src,
+    alt: img.alt,
+    naturalWidth: img.naturalWidth,
+    naturalHeight: img.naturalHeight
+  })
   img.src = IMAGE_PLACEHOLDER_SVG
 }
 
@@ -37,16 +43,16 @@ export function formatImageDimensions(dimensions: [number, number] | undefined):
 export function isValidImageFile(file: File): boolean {
   const allowedTypes = [
     'image/png',
-    'image/jpeg', 
+    'image/jpeg',
     'image/jpg',
     'image/tiff',
     'image/bmp',
     'application/dicom'
   ]
-  
+
   const allowedExtensions = ['.png', '.jpg', '.jpeg', '.tiff', '.bmp', '.dcm']
   const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase()
-  
+
   return allowedTypes.includes(file.type) || allowedExtensions.includes(fileExtension)
 }
 
@@ -58,8 +64,8 @@ export function isValidImageFile(file: File): boolean {
  * @returns true se o tamanho é válido
  */
 export function isValidFileSize(
-  file: File, 
-  maxSizeBytes?: number, 
+  file: File,
+  maxSizeBytes?: number,
   minSizeBytes: number = 1024
 ): boolean {
   // Definir limite baseado no tipo de arquivo
@@ -67,7 +73,7 @@ export function isValidFileSize(
     const isDicom = file.name.toLowerCase().endsWith('.dcm') || file.type === 'application/dicom'
     maxSizeBytes = isDicom ? 50 * 1024 * 1024 : 10 * 1024 * 1024 // 50MB para DICOM, 10MB para outros
   }
-  
+
   return file.size >= minSizeBytes && file.size <= maxSizeBytes
 }
 

@@ -1,12 +1,12 @@
 import { API_CONFIG } from '@/config/api'
-import axios from 'axios'
 import type {
   Analysis,
   AnalysisDetail,
-  UploadResponse,
-  AnalysisResponse
+  AnalysisResponse,
+  UploadResponse
 } from '@/domain/models'
-import { adaptAnalysis, adaptAnalyses, adaptUploadResponse, adaptAnalysisResponse } from '@/utils'
+import { adaptAnalyses, adaptAnalysis, adaptAnalysisResponse, adaptUploadResponse } from '@/utils'
+import axios from 'axios'
 
 const API_BASE_URL = API_CONFIG.BASE_URL
 
@@ -110,7 +110,7 @@ class ApiService {
   }
 
   // Excluir análise
-  async deleteAnalysis(id: number): Promise<{ message: string; analysis_id: number; filename: string }> {
+  async deleteAnalysis(id: number): Promise<{ message: string; analysisId: number; filename: string }> {
     const response = await this.api.delete(`/api/v1/analysis/${id}`)
     return adaptAnalysisResponse(response.data)
   }

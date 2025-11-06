@@ -95,7 +95,7 @@ export const useAnalysisStore = defineStore('analysis', () => {
 
       // Adicionar à lista de análises
       const newAnalysis: Analysis = {
-        id: response.analysis_id,
+        id: response.analysisId,
         filename: response.filename,
         original_filename: response.original_filename,
         file_size: response.file_size,

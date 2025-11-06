@@ -22,6 +22,8 @@ export interface Analysis {
   is_processed: boolean
   has_analysis: boolean
   error_message?: string
+  info?: ImageInfo
+  results?: AnalysisResults
 }
 
 /**
@@ -57,7 +59,7 @@ export interface AnalysisDetail extends Analysis {
  */
 export interface UploadResponse {
   message: string
-  analysis_id: number
+  analysisId: number
   filename: string
   original_filename: string
   info: ImageInfo
@@ -70,7 +72,7 @@ export interface UploadResponse {
  */
 export interface AnalysisResponse {
   message: string
-  analysis_id: number
+  analysisId: number
   filename: string
   status: string
   model?: string

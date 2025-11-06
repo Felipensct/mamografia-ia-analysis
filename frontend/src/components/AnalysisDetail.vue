@@ -1,5 +1,35 @@
 <template>
-  <div v-if="analysis">
+  <!-- Loading State -->
+  <div v-if="loading" class="text-center py-12">
+    <div class="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+      <svg class="w-8 h-8 text-blue-600 animate-spin" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+    </div>
+    <h2 class="text-xl font-semibold text-gray-900 mb-2">Carregando Análise</h2>
+    <p class="text-gray-600">Buscando detalhes da análise...</p>
+  </div>
+
+  <!-- Error State -->
+  <div v-else-if="error" class="text-center py-12">
+    <div class="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+      <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    </div>
+    <h2 class="text-xl font-semibold text-gray-900 mb-2">Erro ao Carregar Análise</h2>
+    <p class="text-gray-600 mb-6">{{ error }}</p>
+    <button
+      @click="loadAnalysis"
+      class="btn-primary"
+    >
+      Tentar Novamente
+    </button>
+  </div>
+
+  <!-- Analysis Content -->
+  <div v-else-if="analysis">
     <!-- Conteúdo Principal -->
     <div>
       <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
@@ -129,8 +159,8 @@
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <span v-if="!loading">Analisar</span>
-                <span v-else>Analisando...</span>
+                <span v-if="!loading">Analisar com Gemini</span>
+                <span v-else>Analisando com Gemini...</span>
               </button>
             </div>
             
@@ -159,13 +189,20 @@
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <span v-if="!loading">Analisar</span>
-                <span v-else>Analisando...</span>
+                <span v-if="!loading">Analisar com Hugging Face</span>
+                <span v-else>Analisando com Hugging Face...</span>
               </button>
             </div>
             
+            <!-- Status de Erro -->
+            <div v-if="error" class="error-compact">
+              <div class="error-icon">⚠️</div>
+              <p class="error-text">{{ error }}</p>
+              <button @click="error = null" class="error-dismiss">✕</button>
+            </div>
+
             <!-- Dica Compacta -->
-            <div class="tip-compact">
+            <div v-else class="tip-compact">
               <div class="tip-icon">💡</div>
               <span>Use ambas as IAs para uma análise mais completa e precisa</span>
             </div>
@@ -236,12 +273,12 @@
 
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import apiService from '@/services/api'
 import { useAnalysisStore } from '@/stores/analysis'
+import { formatFileSize } from '@/utils'
 import { marked } from 'marked'
-import { formatFileSize, formatDate, getStatusBadgeClass, getStatusText, handleImageError } from '@/utils'
+import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 
 // Props
 const props = defineProps<{
@@ -265,30 +302,33 @@ interface Analysis {
   file_size: number
   upload_date: string
   status: string
-  gemini_analysis?: string
-  gpt4v_analysis?: string
   info?: {
     dimensions: [number, number]
+  }
+  results?: {
+    gemini?: string
+    gpt4v?: string
   }
 }
 
 // State
 const analysis = ref<Analysis | null>(null)
-const loading = ref(false)
+const loading = ref(true)
+const error = ref<string | null>(null)
 const activeTab = ref('gemini')
 const showAnalysisOptions = ref(false)
 
 // Computed
 const hasAnalysis = computed(() => {
-  return analysis.value && (analysis.value.gemini_analysis || analysis.value.gpt4v_analysis)
+  return analysis.value && (analysis.value.results?.gemini || analysis.value.results?.gpt4v)
 })
 
 const analysisTabs = computed(() => {
   const tabs = []
-  if (analysis.value?.gemini_analysis) {
+  if (analysis.value?.results?.gemini) {
     tabs.push({ id: 'gemini', name: 'Gemini AI' })
   }
-  if (analysis.value?.gpt4v_analysis) {
+  if (analysis.value?.results?.gpt4v) {
     tabs.push({ id: 'huggingface', name: 'Hugging Face' })
   }
   return tabs
@@ -300,10 +340,16 @@ const analyzeImage = async () => {
   if (!analysis.value) return
   try {
     loading.value = true
+    error.value = null
+    console.log('🔄 Iniciando análise com Gemini...')
+    
     await analysisStore.analyzeImage(analysis.value.id)
     await loadAnalysis()
+    
+    console.log('✅ Análise Gemini concluída')
   } catch (error) {
-    console.error('Erro na análise com Gemini:', error)
+    console.error('❌ Erro na análise com Gemini:', error)
+    error.value = error.message || 'Erro na análise com Gemini'
   } finally {
     loading.value = false
   }
@@ -313,11 +359,16 @@ const analyzeImageHF = async () => {
   if (!analysis.value) return
   try {
     loading.value = true
-    // Usar endpoint específico do Hugging Face
-    await fetch(`/api/v1/analyze-huggingface/${analysis.value.id}`, { method: 'POST' })
+    console.log('🔄 Iniciando análise com Hugging Face...')
+    
+    // Usar apiService para análise com Hugging Face
+    await analysisStore.analyzeImage(analysis.value.id, true)
     await loadAnalysis()
+    
+    console.log('✅ Análise Hugging Face concluída')
   } catch (error) {
-    console.error('Erro na análise com Hugging Face:', error)
+    console.error('❌ Erro na análise com Hugging Face:', error)
+    error.value = error.message || 'Erro na análise com Hugging Face'
   } finally {
     loading.value = false
   }
@@ -325,16 +376,27 @@ const analyzeImageHF = async () => {
 
 const loadAnalysis = async () => {
   try {
+    loading.value = true
+    error.value = null
+    console.log('🔄 Carregando análise ID:', props.analysisId)
+    
     const data = await apiService.getAnalysis(parseInt(props.analysisId))
     analysis.value = data as Analysis
     emit('analysis-loaded', analysis.value)
-  } catch (error) {
-    console.error('Erro ao carregar análise:', error)
+    
+    console.log('✅ Análise carregada com sucesso:', analysis.value)
+  } catch (err: any) {
+    console.error('❌ Erro ao carregar análise:', err)
+    error.value = err.response?.data?.detail || err.message || 'Erro ao carregar análise'
+  } finally {
+    loading.value = false
   }
 }
 
 const getImageUrl = (filename: string) => {
-  return apiService.getImageUrl(filename)
+  const url = apiService.getImageUrl(filename)
+  console.log('🖼️ URL da imagem gerada:', { filename, url })
+  return url
 }
 
 const getImageDimensions = () => {
@@ -347,11 +409,11 @@ const getImageDimensions = () => {
 
 
 const getActiveAnalysisContent = () => {
-  if (activeTab.value === 'gemini' && analysis.value?.gemini_analysis) {
-    return marked(analysis.value.gemini_analysis)
+  if (activeTab.value === 'gemini' && analysis.value?.results?.gemini) {
+    return marked(analysis.value.results.gemini)
   }
-  if (activeTab.value === 'huggingface' && analysis.value?.gpt4v_analysis) {
-    return marked(analysis.value.gpt4v_analysis)
+  if (activeTab.value === 'huggingface' && analysis.value?.results?.gpt4v) {
+    return marked(analysis.value.results.gpt4v)
   }
   return '<p>Nenhuma análise disponível</p>'
 }

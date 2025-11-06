@@ -108,11 +108,14 @@ class AIService:
         try:
             import google.generativeai as genai
             
+            print("🔄 Iniciando análise com Gemini...")
+            
             # Configurar a API
             genai.configure(api_key=self.gemini_api_key)
             
-            # Configurar o modelo
+            # Configurar o modelo com timeout
             model = genai.GenerativeModel('gemini-2.0-flash')
+            print("✅ Modelo Gemini configurado")
             
             # Pré-processar imagem para melhor análise
             processed_image_path = self.preprocess_image(image_path)
@@ -234,8 +237,14 @@ class AIService:
             with open(processed_image_path, 'rb') as image_file:
                 image_data = image_file.read()
             
-            # Fazer a análise
+            # Fazer a análise com timeout
+            print("🔄 Enviando requisição para Gemini...")
             response = model.generate_content([prompt, {"mime_type": "image/jpeg", "data": image_data}])
+            
+            if not response or not response.text:
+                raise Exception("Resposta vazia do Gemini")
+            
+            print("✅ Análise Gemini concluída com sucesso")
             
             # Limpar arquivo temporário
             try:
@@ -247,11 +256,12 @@ class AIService:
             return {
                 "success": True,
                 "analysis": response.text,
-                "model": "Gemini 1.5 Flash",
+                "model": "Gemini 2.0 Flash",
                 "error": None
             }
             
         except Exception as e:
+            print(f"❌ Erro na análise Gemini: {str(e)}")
             return {
                 "success": False,
                 "error": f"Erro na análise com Gemini: {str(e)}",
@@ -317,7 +327,7 @@ class AIService:
                     }
                     
                     response = requests.post(
-                        f"https://api-inference.huggingface.co/models/{model}",
+                        f"https://router.huggingface.co/hf-inference/models/{model}",
                         headers=headers,
                         json=payload,
                         timeout=120

@@ -212,7 +212,7 @@ mamografia-ia-analysis/
 - **Rate Limiting**: Implementado com retry logic
 
 ### Hugging Face Transformers
-- **Endpoint**: `https://api-inference.huggingface.co/models/{model_name}`
+- **Endpoint**: `https://router.huggingface.co/hf-inference/models/{model_name}`
 - **Autenticação**: API Token
 - **Modelos**: ConvNeXt, Swin Transformer, ResNet-50, Vision Transformer
 - **Fallback**: Análise local OpenCV
