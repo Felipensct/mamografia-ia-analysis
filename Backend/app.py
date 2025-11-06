@@ -1,6 +1,6 @@
 """
 Plataforma de Análise de IAs Generativas para Mamografias
-Backend FastAPI - Versão corrigida
+Backend FastAPI - Versão corrigida com suporte a PGM
 """
 
 from fastapi import FastAPI, File, UploadFile, HTTPException, Depends
@@ -16,7 +16,8 @@ from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, F
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.sql import func
-from PIL import Image, ImageOps
+from PIL import Image, ImageOps, ImageEnhance
+import pydicom  # Você precisa instalar: pip install pydicom
 import io
 import pydicom
 from pydicom.errors import InvalidDicomError
@@ -137,7 +138,18 @@ async def get_image(filename: str):
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="Imagem não encontrada")
     
-    return FileResponse(file_path, media_type="image/jpeg")
+    # Determinar o media_type (content type) baseado na extensão do arquivo
+    extension = Path(filename).suffix.lower()
+    media_type_map = {
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.pgm': 'image/x-portable-graymap', # Tipo MIME para PGM
+        '.dcm': 'application/dicom'
+    }
+    media_type = media_type_map.get(extension, 'application/octet-stream')
+    
+    return FileResponse(file_path, media_type=media_type)
 
 # Endpoint de upload com banco de dados
 @app.post("/api/v1/upload")
@@ -154,14 +166,19 @@ async def upload_mammography(file: UploadFile = File(...), db: Session = Depends
             raise HTTPException(status_code=400, detail="Arquivo deve ser uma imagem ou arquivo DICOM")
         
         # Verificar extensão
-        allowed_extensions = ['.png', '.jpg', '.jpeg', '.dcm']
+        allowed_extensions = ['.png', '.jpg', '.jpeg', '.dcm', '.pgm']
         file_extension = Path(file.filename).suffix.lower()
-        if file_extension not in allowed_extensions:
+        
+        # Permite se for um tipo 'image/' ou se for .pgm ou .dcm
+        is_image_type = file.content_type and file.content_type.startswith('image/')
+        is_special_format = file_extension in ['.pgm', '.dcm']
+        
+        if not (is_image_type or is_special_format):
             raise HTTPException(
                 status_code=400, 
-                detail=f"Formato não suportado. Use: {', '.join(allowed_extensions)}"
+                detail=f"Arquivo deve ser uma imagem válida ({', '.join(allowed_extensions)})"
             )
-        
+            
         # Ler conteúdo do arquivo
         content = await file.read()
 
@@ -214,7 +231,7 @@ async def upload_mammography(file: UploadFile = File(...), db: Session = Depends
             unique_filename = f"{uuid.uuid4()}{file_extension}"
         file_path = os.path.join(UPLOAD_DIR, unique_filename)
         
-        # Salvar arquivo
+        # Salvar arquivo original no disco
         with open(file_path, "wb") as buffer:
             buffer.write(content)
         
@@ -261,7 +278,7 @@ async def list_uploads(skip: int = 0, limit: int = 10, db: Session = Depends(get
                     "filename": analysis.filename,
                     "original_filename": analysis.original_filename,
                     "file_size": analysis.file_size,
-                    "upload_date": analysis.upload_date,
+                    "upload_date": analysis.upload_date.isoformat() if analysis.upload_date else None,
                     "status": analysis.processing_status,
                     "has_gemini": bool(analysis.gemini_analysis),
                     "has_gpt4v": bool(analysis.gpt4v_analysis)
@@ -290,8 +307,8 @@ async def list_analyses(skip: int = 0, limit: int = 10, db: Session = Depends(ge
                     "filename": analysis.filename,
                     "original_filename": analysis.original_filename,
                     "file_size": analysis.file_size,
-                    "upload_date": analysis.upload_date,
-                    "processing_date": analysis.processing_date,
+                    "upload_date": analysis.upload_date.isoformat() if analysis.upload_date else None,
+                    "processing_date": analysis.processing_date.isoformat() if analysis.processing_date else None,
                     "status": analysis.processing_status,
                     "is_processed": analysis.is_processed,
                     "has_analysis": bool(analysis.gemini_analysis),
@@ -330,8 +347,8 @@ async def get_analysis(analysis_id: int, db: Session = Depends(get_db)):
             "filename": analysis.filename,
             "original_filename": analysis.original_filename,
             "file_size": analysis.file_size,
-            "upload_date": analysis.upload_date,
-            "processing_date": analysis.processing_date,
+            "upload_date": analysis.upload_date.isoformat() if analysis.upload_date else None,
+            "processing_date": analysis.processing_date.isoformat() if analysis.processing_date else None,
             "status": analysis.processing_status,
             "error_message": analysis.error_message,
             "info": info_data,
@@ -345,7 +362,6 @@ async def get_analysis(analysis_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail=f"Erro ao obter análise: {str(e)}")
 
 # Endpoint de análise com IA
-
 @app.post("/api/v1/analyze/{analysis_id}")
 async def analyze_mammography(analysis_id: int, db: Session = Depends(get_db)):
     """
@@ -384,11 +400,11 @@ async def analyze_mammography(analysis_id: int, db: Session = Depends(get_db)):
                 "analysis": gemini_result["analysis"]
             }
         else:
-            # Se Gemini falhar, tentar Hugging Face
+            # Se Gemini falhar, tentar Hugging Face (ou outro modelo)
             hf_result = ai_service.analyze_with_alternative_api(analysis.file_path)
             
             if hf_result["success"]:
-                analysis.gemini_analysis = hf_result["analysis"]
+                analysis.gemini_analysis = hf_result["analysis"] # Salva no mesmo campo (pode ser ajustado)
                 analysis.processing_status = "completed"
                 analysis.is_processed = True
                 db.commit()
@@ -409,7 +425,7 @@ async def analyze_mammography(analysis_id: int, db: Session = Depends(get_db)):
                 
                 raise HTTPException(
                     status_code=500, 
-                    detail=f"Erro na análise: {gemini_result['error']}"
+                    detail=f"Erro na análise: {analysis.error_message}"
                 )
         
     except HTTPException:
@@ -446,7 +462,7 @@ async def analyze_mammography_hf(analysis_id: int, db: Session = Depends(get_db)
         
         if hf_result["success"]:
             # Salvar resultado no banco
-            analysis.gemini_analysis = hf_result["analysis"]  # Usando o mesmo campo por simplicidade
+            analysis.gemini_analysis = hf_result["analysis"]  # Usando o campo principal por simplicidade
             analysis.processing_status = "completed"
             analysis.is_processed = True
             db.commit()
@@ -607,29 +623,44 @@ def convert_dicom_to_image(file_content: bytes, filename: str) -> tuple[bytes, d
 
 def validate_and_process_image(file_content: bytes, filename: str) -> dict:
     """
-                                image.png    Valida e processa imagem de mamografia com redimensionamento inteligente
-    
-    Args:
-        file_content: Conteúdo binário da imagem
-        filename: Nome do arquivo
-    
-    Returns:
-        dict: Informações da imagem processada
-    
-    Raises:
-        HTTPException: Se a imagem for inválida
+    Valida e processa imagem de mamografia com redimensionamento e otimização.
     """
     try:
-        # Abrir imagem
-        image = Image.open(io.BytesIO(file_content))
+        # Tratamento especial para arquivos DICOM
+        if filename.lower().endswith('.dcm'):
+            print("🏥 Processando arquivo DICOM...")
+            # Ler arquivo DICOM da memória
+            dataset = pydicom.dcmread(io.BytesIO(file_content))
+            
+            # Converter para array e normalizar
+            pixel_array = dataset.pixel_array
+            
+            # Normalizar para 0-255
+            normalized_image = ((pixel_array - pixel_array.min()) / 
+                             (pixel_array.max() - pixel_array.min()) * 255).astype('uint8')
+            
+            # Converter para imagem PIL
+            image = Image.fromarray(normalized_image)
+            
+            # Converter para RGB
+            image = image.convert('RGB')
+            print("🎨 Convertido DICOM para RGB")
+            
+            original_width, original_height = image.size
+        else:
+            # Processamento normal para outros tipos de imagem
+            image = Image.open(io.BytesIO(file_content))
+            original_width, original_height = image.size
+        
+        # Tratamento especial para PGM
+        if filename.lower().endswith('.pgm'):
+            print(f"🖼️ Processando imagem PGM: modo={image.mode}")
+            # Converter para RGB mantendo informações da escala de cinza
+            if image.mode in ['L', 'I']:
+                image = image.convert('RGB')
+                print("🎨 Convertido PGM para RGB")
 
-        image.verify()
-
-        # Reabrir para processamento já que verify fecha a imagem
-        image = Image.open(io.BytesIO(file_content))
-
-        original_width, original_height = image.size
-
+        # Verificar tamanho mínimo
         min_width, min_height = 100, 100
         max_width, max_height = 4000, 4000
 
@@ -660,18 +691,18 @@ def validate_and_process_image(file_content: bytes, filename: str) -> dict:
     except Exception as e:
         raise HTTPException(
             status_code=400,
-            detail=f"Arquivo não é uma imagem válida: {str(e)}"
+            detail=f"Erro ao processar imagem: {str(e)}"
         )
 
-    # Convertar para RGB se necessário
+    # 🚨 CORREÇÃO PGM: Converte para RGB se necessário (inclui imagens PGM que são L ou I)
     if image.mode != "RGB":
+        print(f"🎨 Convertendo imagem de {image.mode} para RGB para consistência com modelos de IA...")
         image = image.convert("RGB")
 
     # Otimizações para análise
     image = ImageOps.autocontrast(image)
     
     # Ajustar brilho e contraste para melhor análise
-    from PIL import ImageEnhance
     enhancer = ImageEnhance.Contrast(image)
     image = enhancer.enhance(1.2)  # Aumentar contraste em 20%
     
@@ -693,9 +724,10 @@ def validate_and_process_image(file_content: bytes, filename: str) -> dict:
         "dimensions": (current_width, current_height),
         "format": image.format,
         "mode": image.mode,
-        "is_optimized": current_width <= 1024 and current_height <= 1024,
+        # Aqui, 2048x2048 é o limite ideal para IA (não 1024)
+        "is_optimized": current_width <= final_max_size[0] and current_height <= final_max_size[1],
         "was_resized": was_resized,
-        "original_dimensions": (original_width, original_height) if was_resized else None
+        "original_dimensions": (original_width, original_height)
     }
     
     if was_resized:

@@ -3,7 +3,7 @@
     <!-- Header -->
     <div class="flex items-center justify-between">
       <div>
-        <h2 class="text-xl font-semibold text-gray-900">Análises Realizadas</h2>
+        <h2 class="text-xl font-semibold
         <p class="text-sm text-gray-600 mt-1">
           {{ totalAnalyses }} análises no total
         </p>
