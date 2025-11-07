@@ -1,4 +1,4 @@
 #!/bin/bash
 echo "Parando serviços..."
-kill 21225 21256 2>/dev/null
+kill 34722 34755 2>/dev/null
 echo "Serviços parados!"
