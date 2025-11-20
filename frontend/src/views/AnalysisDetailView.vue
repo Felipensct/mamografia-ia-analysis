@@ -113,7 +113,6 @@ interface Analysis {
   upload_date: string
   status: string
   gemini_analysis?: string
-  gpt4v_analysis?: string
   info?: {
     dimensions: [number, number]
   }

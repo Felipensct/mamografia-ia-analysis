@@ -89,8 +89,7 @@ A arquitetura implementa um sistema híbrido de análise com três camadas:
 Backend/
 ├── app.py                 # Camada de apresentação (FastAPI)
 ├── services/              # Camada de aplicação
-│   ├── ai_service.py      # Serviços de IA
-│   └── multi_ai_service.py # Serviços multi-IA
+│   └── ai_service.py      # Serviços de IA (Gemini + Hugging Face)
 ├── models/                # Camada de domínio (SQLAlchemy)
 └── database/              # Camada de infraestrutura
 ```
@@ -141,8 +140,7 @@ mamografia-ia-analysis/
 ├── Backend/                    # API FastAPI
 │   ├── app.py                  # Aplicação principal
 │   ├── services/               # Serviços de negócio
-│   │   ├── ai_service.py       # Serviço de IA híbrido
-│   │   └── multi_ai_service.py # Serviço multi-IA
+│   │   └── ai_service.py       # Serviço de IA (Gemini + Hugging Face)
 │   ├── requirements.txt        # Dependências Python
 │   ├── migrate_database.py     # Migração de banco
 │   └── rebuild_venv.sh         # Script de reconstrução

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Script de Migração do Banco de Dados - Mamografia IA
-Adiciona coluna 'info' se não existir
+Adiciona colunas 'info' e 'image_hash' se não existirem
 """
 
 import sqlite3
@@ -25,31 +25,54 @@ def migrate_database():
         conn = sqlite3.connect(str(db_path))
         cursor = conn.cursor()
         
-        # Verificar se a coluna 'info' já existe
+        # Verificar colunas existentes
         cursor.execute("PRAGMA table_info(analyses)")
         columns = [column[1] for column in cursor.fetchall()]
         
-        if 'info' in columns:
-            print("✅ Coluna 'info' já existe. Migração não necessária.")
+        migrations_needed = []
+        
+        # Verificar e adicionar coluna 'info'
+        if 'info' not in columns:
+            migrations_needed.append('info')
+        
+        # Verificar e adicionar coluna 'image_hash'
+        if 'image_hash' not in columns:
+            migrations_needed.append('image_hash')
+        
+        if not migrations_needed:
+            print("✅ Todas as colunas já existem. Migração não necessária.")
             return True
         
-        print("⚠️  Coluna 'info' não encontrada. Executando migração...")
+        print(f"⚠️  Colunas faltando: {', '.join(migrations_needed)}. Executando migração...")
         
-        # Adicionar coluna info
-        cursor.execute("ALTER TABLE analyses ADD COLUMN info TEXT")
+        # Adicionar coluna info se necessário
+        if 'info' in migrations_needed:
+            cursor.execute("ALTER TABLE analyses ADD COLUMN info TEXT")
+            print("✅ Coluna 'info' adicionada.")
+        
+        # Adicionar coluna image_hash se necessário
+        if 'image_hash' in migrations_needed:
+            cursor.execute("ALTER TABLE analyses ADD COLUMN image_hash VARCHAR(32)")
+            # Criar índice para melhor performance nas buscas de cache
+            try:
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_image_hash ON analyses(image_hash)")
+                print("✅ Coluna 'image_hash' adicionada com índice.")
+            except Exception as e:
+                print(f"⚠️  Coluna 'image_hash' adicionada, mas índice não criado: {str(e)}")
+        
         conn.commit()
         
-        print("✅ Migração concluída! Coluna 'info' adicionada.")
+        print("✅ Migração concluída!")
         
         # Verificar se funcionou
         cursor.execute("PRAGMA table_info(analyses)")
         columns = [column[1] for column in cursor.fetchall()]
         
-        if 'info' in columns:
-            print("✅ Verificação: Coluna 'info' criada com sucesso!")
+        if 'info' in columns and 'image_hash' in columns:
+            print("✅ Verificação: Todas as colunas criadas com sucesso!")
             return True
         else:
-            print("❌ Erro: Coluna 'info' não foi criada!")
+            print("❌ Erro: Algumas colunas não foram criadas!")
             return False
             
     except Exception as e:
@@ -80,12 +103,19 @@ def check_database_status():
         for column in columns:
             print(f"  - {column[1]} ({column[2]})")
         
-        # Verificar se tem coluna info
+        # Verificar colunas necessárias
         column_names = [col[1] for col in columns]
-        if 'info' in column_names:
-            print("✅ Status: Migração OK - Coluna 'info' presente")
+        missing_columns = []
+        
+        if 'info' not in column_names:
+            missing_columns.append('info')
+        if 'image_hash' not in column_names:
+            missing_columns.append('image_hash')
+        
+        if not missing_columns:
+            print("✅ Status: Migração OK - Todas as colunas presentes")
         else:
-            print("⚠️  Status: Migração necessária - Coluna 'info' ausente")
+            print(f"⚠️  Status: Migração necessária - Colunas ausentes: {', '.join(missing_columns)}")
             
     except Exception as e:
         print(f"❌ Erro ao verificar banco: {str(e)}")

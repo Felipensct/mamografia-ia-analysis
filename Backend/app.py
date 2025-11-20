@@ -5,7 +5,7 @@ Backend FastAPI - Versão corrigida com suporte a PGM
 
 from fastapi import FastAPI, File, UploadFile, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import FileResponse, Response
 import uvicorn
 import os
 import uuid
@@ -17,11 +17,11 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.sql import func
 from PIL import Image, ImageOps, ImageEnhance
-import pydicom  # Você precisa instalar: pip install pydicom
-import io
 import pydicom
+import io
 from pydicom.errors import InvalidDicomError
 import numpy as np
+import hashlib
 from services.ai_service import AIService
 
 # Configurações básicas
@@ -52,7 +52,6 @@ class Analysis(Base):
     
     # Resultados das análises
     gemini_analysis = Column(Text, nullable=True)
-    gpt4v_analysis = Column(Text, nullable=True)
     
     # Metadados
     processing_status = Column(String(50), default="uploaded")
@@ -62,12 +61,50 @@ class Analysis(Base):
     # Informações de processamento da imagem
     info = Column(Text, nullable=True)
     
+    # Cache de resultados baseado em hash da imagem
+    image_hash = Column(String(32), nullable=True, index=True)
+    
     # Campos para futuras funcionalidades
     confidence_score = Column(Float, nullable=True)
     is_processed = Column(Boolean, default=False)
 
 # Criar tabelas
 Base.metadata.create_all(bind=engine)
+
+# Executar migração automática se necessário
+def run_auto_migration():
+    """Executa migração automática do banco de dados"""
+    try:
+        import sqlite3
+        from pathlib import Path
+        
+        db_path = Path(__file__).parent / "mamografia_analysis.db"
+        if not db_path.exists():
+            return  # Banco será criado automaticamente pelo SQLAlchemy
+        
+        conn = sqlite3.connect(str(db_path))
+        cursor = conn.cursor()
+        
+        # Verificar colunas existentes
+        cursor.execute("PRAGMA table_info(analyses)")
+        columns = [column[1] for column in cursor.fetchall()]
+        
+        # Adicionar image_hash se não existir
+        if 'image_hash' not in columns:
+            try:
+                cursor.execute("ALTER TABLE analyses ADD COLUMN image_hash VARCHAR(32)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_image_hash ON analyses(image_hash)")
+                conn.commit()
+                print("✅ Migração automática: coluna 'image_hash' adicionada")
+            except Exception as e:
+                print(f"⚠️  Aviso na migração automática: {str(e)}")
+        
+        conn.close()
+    except Exception as e:
+        print(f"⚠️  Erro na migração automática (não crítico): {str(e)}")
+
+# Executar migração automática
+run_auto_migration()
 
 # Dependency para obter sessão do banco
 def get_db():
@@ -132,6 +169,7 @@ async def health_check():
 async def get_image(filename: str):
     """
     Endpoint para servir imagens enviadas
+    Converte PGM automaticamente para JPEG para compatibilidade com navegadores
     """
     file_path = os.path.join(UPLOAD_DIR, filename)
     
@@ -140,11 +178,39 @@ async def get_image(filename: str):
     
     # Determinar o media_type (content type) baseado na extensão do arquivo
     extension = Path(filename).suffix.lower()
+    
+    # Se for PGM, converter para JPEG em memória para exibição
+    if extension == '.pgm':
+        try:
+            # Carregar imagem PGM
+            with Image.open(file_path) as img:
+                # Converter para RGB se necessário
+                if img.mode != 'RGB':
+                    img = img.convert('RGB')
+                
+                # Salvar como JPEG em memória
+                img_buffer = io.BytesIO()
+                img.save(img_buffer, format='JPEG', quality=95, optimize=False)
+                img_buffer.seek(0)
+                
+                # Retornar JPEG convertido
+                return Response(
+                    content=img_buffer.getvalue(),
+                    media_type='image/jpeg',
+                    headers={
+                        'Content-Disposition': f'inline; filename="{Path(filename).stem}.jpg"'
+                    }
+                )
+        except Exception as e:
+            print(f"Erro ao converter PGM para JPEG: {str(e)}")
+            # Fallback: retornar arquivo original
+            return FileResponse(file_path, media_type='image/x-portable-graymap')
+    
+    # Para outros formatos, retornar normalmente
     media_type_map = {
         '.jpg': 'image/jpeg',
         '.jpeg': 'image/jpeg',
         '.png': 'image/png',
-        '.pgm': 'image/x-portable-graymap', # Tipo MIME para PGM
         '.dcm': 'application/dicom'
     }
     media_type = media_type_map.get(extension, 'application/octet-stream')
@@ -223,6 +289,24 @@ async def upload_mammography(file: UploadFile = File(...), db: Session = Depends
                 detail=f"Arquivo muito grande. Tamanho máximo: {max_size_mb:.0f}MB"
             )
         
+        # Calcular hash MD5 do conteúdo para cache
+        image_hash = hashlib.md5(content).hexdigest()
+        
+        # Verificar se já existe análise com mesmo hash (cache)
+        existing_analysis = db.query(Analysis).filter(Analysis.image_hash == image_hash).first()
+        if existing_analysis and existing_analysis.gemini_analysis:
+            # Retornar análise existente do cache
+            return {
+                "message": "Upload realizado com sucesso (análise do cache)",
+                "analysis_id": existing_analysis.id,
+                "filename": existing_analysis.filename,
+                "original_filename": file.filename,
+                "info": json.loads(existing_analysis.info) if existing_analysis.info else image_info,
+                "file_size": len(content),
+                "status": "uploaded",
+                "from_cache": True
+            }
+        
         # Gerar nome único para o arquivo
         if file_extension == '.dcm':
             # Para DICOM, salvar como JPEG convertido
@@ -242,7 +326,8 @@ async def upload_mammography(file: UploadFile = File(...), db: Session = Depends
             file_path=file_path,
             file_size=len(content),
             processing_status="uploaded",
-            info=json.dumps(image_info)
+            info=json.dumps(image_info),
+            image_hash=image_hash
         )
         
         db.add(analysis)
@@ -280,8 +365,7 @@ async def list_uploads(skip: int = 0, limit: int = 10, db: Session = Depends(get
                     "file_size": analysis.file_size,
                     "upload_date": analysis.upload_date.isoformat() if analysis.upload_date else None,
                     "status": analysis.processing_status,
-                    "has_gemini": bool(analysis.gemini_analysis),
-                    "has_gpt4v": bool(analysis.gpt4v_analysis)
+                    "has_gemini": bool(analysis.gemini_analysis)
                 }
                 for analysis in analyses
             ],
@@ -353,8 +437,7 @@ async def get_analysis(analysis_id: int, db: Session = Depends(get_db)):
             "error_message": analysis.error_message,
             "info": info_data,
             "results": {
-                "gemini": analysis.gemini_analysis,
-                "gpt4v": analysis.gpt4v_analysis
+                "gemini": analysis.gemini_analysis
             }
         }
         
@@ -366,6 +449,7 @@ async def get_analysis(analysis_id: int, db: Session = Depends(get_db)):
 async def analyze_mammography(analysis_id: int, db: Session = Depends(get_db)):
     """
     Endpoint para análise de mamografia com IA (Gemini)
+    Verifica cache baseado em hash da imagem antes de processar
     """
     try:
         analysis = db.query(Analysis).filter(Analysis.id == analysis_id).first()
@@ -376,13 +460,72 @@ async def analyze_mammography(analysis_id: int, db: Session = Depends(get_db)):
         if not os.path.exists(analysis.file_path):
             raise HTTPException(status_code=404, detail="Arquivo não encontrado")
         
+        # Se já tem resultado, retornar sem reprocessar
+        if analysis.gemini_analysis:
+            return {
+                "message": "Análise já existe",
+                "analysis_id": analysis_id,
+                "filename": analysis.filename,
+                "status": "completed",
+                "model": "Gemini 2.5 Pro",
+                "analysis": analysis.gemini_analysis
+            }
+        
+        # Verificar cache ANTES de processar (mesmo hash, resultado existente)
+        if analysis.image_hash:
+            # Buscar análise com mesmo hash que já tenha resultado
+            cached_analysis = db.query(Analysis).filter(
+                Analysis.image_hash == analysis.image_hash,
+                Analysis.gemini_analysis.isnot(None),
+                Analysis.id != analysis_id
+            ).first()
+            
+            if cached_analysis:
+                # Copiar resultado do cache
+                analysis.gemini_analysis = cached_analysis.gemini_analysis
+                analysis.processing_status = "completed"
+                analysis.is_processed = True
+                analysis.processing_date = datetime.utcnow()
+                db.commit()
+                
+                print(f"✅ Cache encontrado! Reutilizando resultado da análise ID {cached_analysis.id}")
+                
+                return {
+                    "message": "Análise concluída com sucesso (do cache)",
+                    "analysis_id": analysis_id,
+                    "filename": analysis.filename,
+                    "status": "completed",
+                    "model": "Gemini 2.5 Pro (cached)",
+                    "analysis": analysis.gemini_analysis,
+                    "from_cache": True
+                }
+        
         # Atualizar status para processando
         analysis.processing_status = "processing"
         analysis.processing_date = datetime.utcnow()
         db.commit()
         
-        # Fazer análise com Gemini
-        gemini_result = ai_service.analyze_mammography(analysis.file_path)
+        # Gerar image_id baseado no nome original do arquivo ou hash da imagem
+        # Isso garante que a mesma imagem sempre tenha o mesmo image_id
+        image_id = None
+        if analysis.original_filename:
+            # Tentar extrair ID do nome original (ex: mdb001.pgm -> mdb001)
+            original_name = Path(analysis.original_filename).stem
+            # Verificar se segue padrão MIAS (mdb###)
+            if original_name.lower().startswith('mdb') and len(original_name) >= 6:
+                image_id = original_name.lower()[:6]  # mdb001, mdb002, etc.
+        
+        # Se não conseguiu extrair do nome, usar hash da imagem
+        if not image_id and analysis.image_hash:
+            image_id = f"mdb_{analysis.image_hash[:8]}"
+        
+        # Fallback: usar ID do banco (menos ideal, mas funciona)
+        if not image_id:
+            image_id = f"mdb{analysis.id:03d}"
+        
+        print(f"🆔 Image ID gerado: {image_id} (original: {analysis.original_filename}, hash: {analysis.image_hash[:8] if analysis.image_hash else 'N/A'})")
+        
+        gemini_result = ai_service.analyze_mammography(analysis.file_path, image_id=image_id)
         
         if gemini_result["success"]:
             # Salvar resultado no banco
@@ -569,24 +712,52 @@ def convert_dicom_to_image(file_content: bytes, filename: str) -> tuple[bytes, d
         # Obter pixel array
         pixel_array = dicom_file.pixel_array
         
-        # Aplicar windowing se disponível
+        # Aplicar windowing se disponível (processamento determinístico)
         if hasattr(dicom_file, 'WindowCenter') and hasattr(dicom_file, 'WindowWidth'):
             try:
-                window_center = float(dicom_file.WindowCenter)
-                window_width = float(dicom_file.WindowWidth)
+                # Garantir que WindowCenter e WindowWidth sejam valores únicos (não listas)
+                window_center = dicom_file.WindowCenter
+                window_width = dicom_file.WindowWidth
                 
-                # Aplicar windowing
+                if isinstance(window_center, (list, tuple)):
+                    window_center = float(window_center[0])
+                else:
+                    window_center = float(window_center)
+                
+                if isinstance(window_width, (list, tuple)):
+                    window_width = float(window_width[0])
+                else:
+                    window_width = float(window_width)
+                
+                # Aplicar windowing de forma consistente
                 min_val = window_center - window_width / 2
                 max_val = window_center + window_width / 2
                 
                 pixel_array = np.clip(pixel_array, min_val, max_val)
-                pixel_array = ((pixel_array - min_val) / (max_val - min_val) * 255).astype(np.uint8)
-            except:
-                # Se windowing falhar, normalizar diretamente
-                pixel_array = ((pixel_array - pixel_array.min()) / (pixel_array.max() - pixel_array.min()) * 255).astype(np.uint8)
+                # Normalizar para 0-255 de forma determinística
+                pixel_min = pixel_array.min()
+                pixel_max = pixel_array.max()
+                if pixel_max > pixel_min:
+                    pixel_array = ((pixel_array - pixel_min) / (pixel_max - pixel_min) * 255).astype(np.uint8)
+                else:
+                    pixel_array = np.zeros_like(pixel_array, dtype=np.uint8)
+            except Exception as e:
+                print(f"⚠️  Erro no windowing DICOM, usando normalização padrão: {str(e)}")
+                # Se windowing falhar, normalizar diretamente de forma determinística
+                pixel_min = pixel_array.min()
+                pixel_max = pixel_array.max()
+                if pixel_max > pixel_min:
+                    pixel_array = ((pixel_array - pixel_min) / (pixel_max - pixel_min) * 255).astype(np.uint8)
+                else:
+                    pixel_array = np.zeros_like(pixel_array, dtype=np.uint8)
         else:
-            # Normalizar para 0-255
-            pixel_array = ((pixel_array - pixel_array.min()) / (pixel_array.max() - pixel_array.min()) * 255).astype(np.uint8)
+            # Normalizar para 0-255 de forma determinística
+            pixel_min = pixel_array.min()
+            pixel_max = pixel_array.max()
+            if pixel_max > pixel_min:
+                pixel_array = ((pixel_array - pixel_min) / (pixel_max - pixel_min) * 255).astype(np.uint8)
+            else:
+                pixel_array = np.zeros_like(pixel_array, dtype=np.uint8)
         
         # Converter para PIL Image
         if len(pixel_array.shape) == 3:
@@ -600,9 +771,9 @@ def convert_dicom_to_image(file_content: bytes, filename: str) -> tuple[bytes, d
         if image.mode != 'RGB':
             image = image.convert('RGB')
         
-        # Salvar como JPEG em memória
+        # Salvar como JPEG em memória (qualidade fixa para consistência)
         img_buffer = io.BytesIO()
-        image.save(img_buffer, format='JPEG', quality=95)
+        image.save(img_buffer, format='JPEG', quality=95, optimize=False)  # optimize=False para consistência
         img_content = img_buffer.getvalue()
         
         print(f"✅ DICOM convertido com sucesso: {dicom_info['rows']}x{dicom_info['columns']}px")
@@ -632,12 +803,17 @@ def validate_and_process_image(file_content: bytes, filename: str) -> dict:
             # Ler arquivo DICOM da memória
             dataset = pydicom.dcmread(io.BytesIO(file_content))
             
-            # Converter para array e normalizar
+            # Converter para array e normalizar (processamento determinístico)
             pixel_array = dataset.pixel_array
             
-            # Normalizar para 0-255
-            normalized_image = ((pixel_array - pixel_array.min()) / 
-                             (pixel_array.max() - pixel_array.min()) * 255).astype('uint8')
+            # Normalizar para 0-255 de forma consistente
+            pixel_min = pixel_array.min()
+            pixel_max = pixel_array.max()
+            if pixel_max > pixel_min:
+                normalized_image = ((pixel_array - pixel_min) / 
+                                 (pixel_max - pixel_min) * 255).astype('uint8')
+            else:
+                normalized_image = np.zeros_like(pixel_array, dtype=np.uint8)
             
             # Converter para imagem PIL
             image = Image.fromarray(normalized_image)

@@ -47,10 +47,11 @@ export function isValidImageFile(file: File): boolean {
     'image/jpg',
     'image/tiff',
     'image/bmp',
+    'image/x-portable-graymap',
     'application/dicom'
   ]
 
-  const allowedExtensions = ['.png', '.jpg', '.jpeg', '.tiff', '.bmp', '.dcm']
+  const allowedExtensions = ['.png', '.jpg', '.jpeg', '.tiff', '.bmp', '.pgm', '.dcm']
   const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase()
 
   return allowedTypes.includes(file.type) || allowedExtensions.includes(fileExtension)

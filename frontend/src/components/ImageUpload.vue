@@ -28,7 +28,7 @@
       <input
         ref="fileInput"
         type="file"
-        accept="image/*,.dcm"
+        accept="image/*,.dcm,.pgm"
         @change="handleFileSelect"
         class="hidden"
         :disabled="loading"
@@ -47,7 +47,7 @@
             {{ isDragOver ? 'Solte a imagem aqui' : 'Clique ou arraste uma imagem' }}
           </p>
           <p class="text-sm text-gray-500 mt-1">
-            Formatos suportados: PNG, JPG, JPEG, TIFF, BMP, DICOM (.dcm)
+            Formatos suportados: PNG, JPG, JPEG, TIFF, BMP, PGM, DICOM (.dcm)
           </p>
           <p class="text-xs text-gray-400 mt-1">
             Tamanho máximo: 10MB (imagens) / 50MB (DICOM)
@@ -220,7 +220,7 @@ function selectFile(file: File) {
   
   // Validar tipo de arquivo
   if (!isValidImageFile(file)) {
-    analysisStore.error = 'Tipo de arquivo não suportado. Use PNG, JPG, JPEG, TIFF, BMP ou DICOM (.dcm)'
+    analysisStore.error = 'Tipo de arquivo não suportado. Use PNG, JPG, JPEG, TIFF, BMP, PGM ou DICOM (.dcm)'
     return
   }
 

@@ -43,7 +43,6 @@ export interface ImageInfo {
  */
 export interface AnalysisResults {
   gemini?: string
-  gpt4v?: string
 }
 
 /**

@@ -68,6 +68,7 @@
                   class="rounded-lg shadow-lg transition-transform duration-200 hover:scale-105"
                   style="max-width: 300px; max-height: 250px; width: auto; height: auto; object-fit: contain;"
                   @load="onImageLoad"
+                  @error="handleImageError"
                 />
               </div>
               
@@ -307,7 +308,6 @@ interface Analysis {
   }
   results?: {
     gemini?: string
-    gpt4v?: string
   }
 }
 
@@ -320,16 +320,13 @@ const showAnalysisOptions = ref(false)
 
 // Computed
 const hasAnalysis = computed(() => {
-  return analysis.value && (analysis.value.results?.gemini || analysis.value.results?.gpt4v)
+  return analysis.value && analysis.value.results?.gemini
 })
 
 const analysisTabs = computed(() => {
   const tabs = []
   if (analysis.value?.results?.gemini) {
     tabs.push({ id: 'gemini', name: 'Gemini AI' })
-  }
-  if (analysis.value?.results?.gpt4v) {
-    tabs.push({ id: 'huggingface', name: 'Hugging Face' })
   }
   return tabs
 })
@@ -421,9 +418,6 @@ const getActiveAnalysisContent = () => {
   if (activeTab.value === 'gemini' && analysis.value?.results?.gemini) {
     return marked(analysis.value.results.gemini)
   }
-  if (activeTab.value === 'huggingface' && analysis.value?.results?.gpt4v) {
-    return marked(analysis.value.results.gpt4v)
-  }
   return '<p>Nenhuma análise disponível</p>'
 }
 
@@ -461,7 +455,19 @@ const applyImageTransform = () => {
 }
 
 const onImageLoad = () => {
-  // Implementar callback de carregamento
+  // Callback de carregamento bem-sucedido
+  console.log('Imagem carregada com sucesso')
+}
+
+const handleImageError = (event: Event) => {
+  // Handler para erro de carregamento de imagem
+  const img = event.target as HTMLImageElement
+  console.warn('Erro ao carregar imagem:', {
+    src: img.src,
+    alt: img.alt
+  })
+  // O backend já converte PGM para JPEG automaticamente, então este erro é raro
+  // Mas mantemos o handler para debug
 }
 
 // Lifecycle
