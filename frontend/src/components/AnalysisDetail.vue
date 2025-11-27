@@ -165,35 +165,6 @@
               </button>
             </div>
             
-            <!-- Hugging Face - Linha Compacta -->
-            <div class="method-row">
-              <div class="method-info">
-                <div class="method-icon-bg method-icon-hf">
-                  <svg class="method-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div class="method-details">
-                  <h4 class="method-title">Hugging Face</h4>
-                  <p class="method-description">Análise computacional com processamento OpenCV</p>
-                </div>
-              </div>
-              <button
-                @click="analyzeImageHF"
-                :disabled="loading"
-                class="btn-analyze-compact btn-hf"
-              >
-                <svg v-if="!loading" class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <svg v-else class="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span v-if="!loading">Analisar com Hugging Face</span>
-                <span v-else>Analisando com Hugging Face...</span>
-              </button>
-            </div>
             
             <!-- Status de Erro -->
             <div v-if="error" class="error-compact">
@@ -205,7 +176,7 @@
             <!-- Dica Compacta -->
             <div v-else class="tip-compact">
               <div class="tip-icon">💡</div>
-              <span>Use ambas as IAs para uma análise mais completa e precisa</span>
+<span>Análise avançada com IA para classificação BI-RADS</span>
             </div>
           </div>
 
@@ -231,7 +202,7 @@
                 Nenhuma análise realizada
               </h4>
               <p class="text-sm text-gray-600 max-w-md mx-auto">
-                Selecione um método de análise acima (Gemini AI ou Hugging Face) para começar
+                Clique em "Analisar com Gemini" para iniciar a análise da imagem
               </p>
             </div>
             
@@ -352,24 +323,6 @@ const analyzeImage = async () => {
   }
 }
 
-const analyzeImageHF = async () => {
-  if (!analysis.value) return
-  try {
-    loading.value = true
-    console.log('🔄 Iniciando análise com Hugging Face...')
-    
-    // Usar apiService para análise com Hugging Face
-    await analysisStore.analyzeImage(analysis.value.id, true)
-    await loadAnalysis()
-    
-    console.log('✅ Análise Hugging Face concluída')
-  } catch (error) {
-    console.error('❌ Erro na análise com Hugging Face:', error)
-    error.value = error.message || 'Erro na análise com Hugging Face'
-  } finally {
-    loading.value = false
-  }
-}
 
 const loadAnalysis = async () => {
   try {
@@ -413,10 +366,119 @@ const getImageDimensions = () => {
   return `${width}x${height}px`
 }
 
+const generateUserFriendlyExplanation = (technicalResult: string) => {
+  // Extrair informações da análise técnica
+  const backgroundType = extractValue(technicalResult, /Tipo de tecido de fundo:\s*([A-Z])/i)
+  const abnormalityClass = extractValue(technicalResult, /Classe de anormalidade:\s*([A-Z]+)/i)
+  const severity = extractValue(technicalResult, /Severidade da anormalidade:\s*([A-Z])/i)
+  
+  let explanation = '<p><strong>Resumo da Análise:</strong></p><ul class="list-disc list-inside space-y-1 mt-2">'
+  
+  // Explicar tipo de tecido
+  if (backgroundType) {
+    const tissueExplanation = {
+      'F': 'tecido predominantemente adiposo (menos denso)',
+      'G': 'tecido fibroglandular (densidade mista)', 
+      'D': 'tecido denso'
+    }
+    explanation += `<li><strong>Tipo de tecido:</strong> ${tissueExplanation[backgroundType] || 'não especificado'}</li>`
+  }
+  
+  // Explicar anormalidade encontrada
+  if (abnormalityClass) {
+    const abnormalityExplanation = {
+      'CALC': 'calcificações (depósitos de cálcio)',
+      'MASS': 'massa ou nódulo',
+      'ARCH': 'distorção arquitetural',
+      'ASYM': 'assimetria'
+    }
+    explanation += `<li><strong>Achado:</strong> Foram identificadas ${abnormalityExplanation[abnormalityClass] || 'alterações'} na imagem</li>`
+  }
+  
+  // Explicar severidade
+  if (severity) {
+    const severityExplanation = {
+      'B': 'achado benigno (não preocupante)',
+      'M': 'achado maligno (requer atenção médica)',
+      'U': 'achado indeterminado (necessita avaliação adicional)'
+    }
+    explanation += `<li><strong>Classificação:</strong> ${severityExplanation[severity] || 'não especificada'}</li>`
+  }
+  
+  explanation += '</ul>'
+  
+  // Adicionar contexto sobre BI-RADS se houver classificação
+  if (severity) {
+    explanation += '<p class="mt-3 text-sm"><strong>Sobre a classificação BI-RADS:</strong> '
+    if (severity === 'B') {
+      explanation += 'Esta classificação indica achados tipicamente benignos, que geralmente não requerem acompanhamento especial.'
+    } else if (severity === 'M') {
+      explanation += 'Esta classificação indica achados que podem necessitar de investigação adicional ou acompanhamento médico.'
+    } else {
+      explanation += 'Esta classificação requer avaliação médica para determinação da conduta apropriada.'
+    }
+    explanation += '</p>'
+  }
+  
+  return explanation
+}
+
+const extractValue = (text: string, regex: RegExp): string | null => {
+  const match = text.match(regex)
+  return match ? match[1] : null
+}
+
 
 const getActiveAnalysisContent = () => {
   if (activeTab.value === 'gemini' && analysis.value?.results?.gemini) {
-    return marked(analysis.value.results.gemini)
+    const technicalAnalysis = marked(analysis.value.results.gemini)
+    const userFriendlyExplanation = generateUserFriendlyExplanation(analysis.value.results.gemini)
+    
+    return `
+      <div class="space-y-6">
+        <!-- Análise Técnica -->
+        <div class="bg-gray-50 rounded-lg p-4 border-l-4 border-blue-500">
+          <h4 class="text-sm font-semibold text-gray-700 mb-3 flex items-center">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Análise Técnica (Para Avaliação de Precisão)
+          </h4>
+          <div class="text-sm text-gray-600">
+            ${technicalAnalysis}
+          </div>
+        </div>
+
+        <!-- Explicação para o Usuário -->
+        <div class="bg-blue-50 rounded-lg p-4 border-l-4 border-blue-600">
+          <h4 class="text-sm font-semibold text-blue-800 mb-3 flex items-center">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Explicação da Análise
+          </h4>
+          <div class="text-sm text-blue-700">
+            ${userFriendlyExplanation}
+          </div>
+        </div>
+
+        <!-- Disclaimer Médico -->
+        <div class="bg-amber-50 rounded-lg p-4 border-l-4 border-amber-500">
+          <h4 class="text-sm font-semibold text-amber-800 mb-2 flex items-center">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.464 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+            Aviso Importante
+          </h4>
+          <p class="text-sm text-amber-700 leading-relaxed">
+            <strong>Esta é uma ferramenta auxiliar de análise por inteligência artificial.</strong> 
+            Os resultados apresentados não substituem o diagnóstico médico profissional. 
+            É fundamental que um médico radiologista qualificado avalie as imagens e emita o laudo oficial. 
+            Sempre consulte um profissional de saúde para interpretação adequada dos resultados.
+          </p>
+        </div>
+      </div>
+    `
   }
   return '<p>Nenhuma análise disponível</p>'
 }
