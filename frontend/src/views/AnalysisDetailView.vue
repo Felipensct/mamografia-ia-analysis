@@ -27,12 +27,12 @@
               </div>
               <div>
                 <h1 class="text-xl font-semibold text-gray-900">
-                  {{ analysis?.original_filename || 'Detalhes da Análise' }}
+                  {{ analysis?.originalFilename || 'Detalhes da Análise' }}
                 </h1>
                 <div class="flex items-center space-x-3 mt-1">
                   <span class="text-sm text-gray-500">Análise #{{ analysisId }}</span>
                   <span v-if="analysis" class="text-sm text-gray-500">•</span>
-                  <span v-if="analysis" class="text-sm text-gray-500">{{ formatDate(analysis.upload_date) }}</span>
+                  <span v-if="analysis" class="text-sm text-gray-500">{{ formatDate(analysis.uploadDate) }}</span>
                   <span v-if="analysis" :class="getStatusBadgeClass(analysis.status)" class="text-xs font-medium px-2 py-1 rounded-full">
                     {{ getStatusText(analysis.status) }}
                   </span>
@@ -108,11 +108,11 @@ const analysis = ref<Analysis | null>(null)
 interface Analysis {
   id: number
   filename: string
-  original_filename: string
-  file_size: number
-  upload_date: string
+  originalFilename: string
+  fileSize: number
+  uploadDate: string
   status: string
-  gemini_analysis?: string
+  geminiAnalysis?: string
   info?: {
     dimensions: [number, number]
   }
