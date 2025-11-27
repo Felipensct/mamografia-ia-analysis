@@ -1,36 +1,23 @@
 <template>
   <div class="min-h-screen bg-gray-50">
     <!-- Header -->
-    <header class="bg-white shadow-sm border-b border-gray-200">
+    <header class="bg-gradient-to-b from-white to-gray-50/50 shadow-md border-b border-gray-200">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex items-center justify-between h-16">
-          <div class="flex items-center space-x-3">
-            <div class="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
-              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-            <div>
-              <h1 class="text-xl font-semibold text-gray-900">Mamografia IA</h1>
-              <p class="text-xs text-gray-500">Análise Inteligente de Imagens</p>
-            </div>
-          </div>
-          
+        <div class="flex items-center justify-center py-8">
+          <h1 class="text-3xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-gray-900 bg-clip-text text-transparent leading-tight">
+            Plataforma de Análise de Mamografias com IA
+          </h1>
         </div>
       </div>
     </header>
 
     <!-- Main Content -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <!-- Welcome Section -->
-      <div class="mb-4">
+      <div class="mb-10 mt-8">
         <div class="text-center">
-          <h2 class="text-2xl font-bold text-gray-900 mb-2">
-            Plataforma de Análise de Mamografias com IA
-          </h2>
-          <p class="text-base text-gray-600 max-w-3xl mx-auto">
-            Faça upload de imagens de mamografia e obtenha análises técnicas detalhadas 
+          <p class="text-lg text-gray-700 max-w-3xl mx-auto leading-relaxed">
+            Faça upload de imagens de mamografia e obtenha <span class="font-semibold text-blue-700">análises técnicas detalhadas</span> 
             usando inteligência artificial avançada.
           </p>
         </div>
@@ -93,26 +80,12 @@
           <div class="card">
             <div class="flex items-center justify-between mb-6">
               <h3 class="text-lg font-semibold text-gray-900">Análises Recentes</h3>
-              <div class="flex items-center space-x-3">
-                <button
-                  v-if="totalAnalyses > 0"
-                  @click="confirmClearAll"
-                  :disabled="loading"
-                  class="group inline-flex items-center px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 hover:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Limpar todas as análises"
-                >
-                  <svg class="w-3 h-3 mr-1.5 transition-transform duration-200 group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                  Limpar Tudo
-                </button>
-                <button
-                  @click="viewAllAnalyses"
-                  class="text-sm text-primary-600 hover:text-primary-700 font-medium"
-                >
-                  Ver todas
-                </button>
-              </div>
+              <button
+                @click="viewAllAnalyses"
+                class="text-sm text-primary-600 hover:text-primary-700 font-medium"
+              >
+                Ver todas
+              </button>
             </div>
 
             <!-- Recent Analyses List - Profissional -->
@@ -126,16 +99,16 @@
               >
                 <img
                   :src="getImageUrl(analysis.filename)"
-                  :alt="analysis.originalFilename"
+                  :alt="analysis.original_filename"
                   class="recent-analysis-thumbnail"
                   @error="handleImageError"
                 />
                 <div class="recent-analysis-info">
                   <p class="recent-analysis-title">
-                    {{ analysis.originalFilename }}
+                    {{ analysis.original_filename }}
                   </p>
                   <p class="recent-analysis-date">
-                    {{ formatDate(analysis.uploadDate) }}
+                    {{ formatDate(analysis.upload_date) }}
                   </p>
                 </div>
                 <span class="badge-with-dot">
@@ -203,40 +176,6 @@ const recentAnalyses = computed(() =>
 )
 
 // Methods
-async function confirmClearAll() {
-  const confirmed = confirm(
-    `Tem certeza que deseja excluir todas as ${totalAnalyses.value} análises?\n\nEsta ação não pode ser desfeita.`
-  )
-  
-  if (confirmed) {
-    try {
-      await clearAllAnalyses()
-    } catch (error) {
-      console.error('❌ Erro ao limpar análises:', error)
-      alert('Erro ao excluir análises. Tente novamente.')
-    }
-  }
-}
-
-async function clearAllAnalyses() {
-  const analyses = analysisStore.analyses
-  console.log(`🗑️ Iniciando exclusão de ${analyses.length} análises...`)
-  
-  // Excluir todas as análises uma por uma
-  for (const analysis of analyses) {
-    try {
-      await analysisStore.deleteAnalysis(analysis.id)
-      console.log(`✅ Análise ${analysis.id} excluída com sucesso`)
-    } catch (error) {
-      console.error(`❌ Erro ao excluir análise ${analysis.id}:`, error)
-      // Continua tentando excluir as outras mesmo se uma falhar
-    }
-  }
-  
-  // Atualizar a lista após exclusões
-  await analysisStore.fetchAnalyses()
-  console.log('🔄 Lista de análises atualizada')
-}
 
 function viewAllAnalyses() {
   router.push('/analyses')
