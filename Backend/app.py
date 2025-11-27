@@ -23,6 +23,7 @@ from pydicom.errors import InvalidDicomError
 import numpy as np
 import hashlib
 from services.ai_service import AIService
+from services.model_service import get_model_service
 
 # Configurações básicas
 BASE_DIR = Path(__file__).parent
@@ -117,6 +118,9 @@ def get_db():
 # Instância do serviço de IA
 ai_service = AIService()
 
+# Instância do serviço de modelo treinado
+model_service = get_model_service()
+
 # Criação da instância FastAPI
 app = FastAPI(
     title="Plataforma de Análise de IAs Generativas para Mamografias",
@@ -160,6 +164,9 @@ async def health_check():
         "directories": {
             "upload": UPLOAD_DIR,
             "results": RESULTS_DIR
+        },
+        "models": {
+            "trained_model_available": model_service.is_available()
         }
     }
 
@@ -672,6 +679,76 @@ async def delete_analysis(analysis_id: int, db: Session = Depends(get_db)):
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Erro ao excluir análise: {str(e)}")
 
+# Endpoint para análise com modelo treinado
+@app.post("/api/v1/analyze-trained-model/{analysis_id}")
+async def analyze_with_trained_model(analysis_id: int, db: Session = Depends(get_db)):
+    """
+    Endpoint para análise de mamografia com modelo treinado
+    """
+    try:
+        # Verificar se o modelo está disponível
+        if not model_service.is_available():
+            raise HTTPException(
+                status_code=503, 
+                detail="Modelo treinado não está disponível no momento"
+            )
+        
+        analysis = db.query(Analysis).filter(Analysis.id == analysis_id).first()
+        
+        if not analysis:
+            raise HTTPException(status_code=404, detail="Análise não encontrada")
+        
+        if not os.path.exists(analysis.file_path):
+            raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+        
+        # Atualizar status para processando
+        analysis.processing_status = "processing"
+        analysis.processing_date = datetime.utcnow()
+        db.commit()
+        
+        # Fazer análise com modelo treinado (gera visualização automaticamente)
+        result = model_service.predict(analysis.file_path, generate_viz=True)
+        
+        if result["success"]:
+            # Salvar resultado no banco (usando o campo gemini_analysis por simplicidade)
+            # Em produção, você pode querer adicionar um campo específico para o modelo treinado
+            analysis.gemini_analysis = result["analysis"]
+            analysis.processing_status = "completed"
+            analysis.is_processed = True
+            analysis.confidence_score = result["probability"]
+            db.commit()
+            
+            return {
+                "message": "Análise concluída com modelo treinado",
+                "analysis_id": analysis_id,
+                "filename": analysis.filename,
+                "visualization_filename": result.get("visualization_filename"),
+                "status": "completed",
+                "model": result["model"],
+                "prediction": result["prediction"],
+                "confidence": result["confidence"],
+                "probability": result["probability"],
+                "diagnostic_report": result["diagnostic_report"],
+                "analysis": result["analysis"]
+            }
+        else:
+            analysis.processing_status = "error"
+            analysis.error_message = result.get("error", "Unknown error in trained model")
+            db.commit()
+            
+            raise HTTPException(
+                status_code=500, 
+                detail=f"Erro na análise: {result.get('error', 'Unknown error')}"
+            )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        analysis.processing_status = "error"
+        analysis.error_message = str(e)
+        db.commit()
+        raise HTTPException(status_code=500, detail=f"Erro na análise: {str(e)}")
+
 def convert_dicom_to_image(file_content: bytes, filename: str) -> tuple[bytes, dict]:
     """
     Converte arquivo DICOM para formato de imagem suportado
@@ -838,7 +915,9 @@ def validate_and_process_image(file_content: bytes, filename: str) -> dict:
 
         # Verificar tamanho mínimo
         min_width, min_height = 100, 100
-        max_width, max_height = 4000, 4000
+        # Limite aumentado para 8000x8000 para suportar imagens de alta resolução
+        # O modelo treinado redimensiona internamente para 224x224, então aceita qualquer tamanho
+        max_width, max_height = 8000, 8000
 
         # Verificar tamanho mínimo
         if original_width < min_width or original_height < min_height:

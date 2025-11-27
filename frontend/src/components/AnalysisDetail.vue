@@ -165,6 +165,38 @@
               </button>
             </div>
             
+            <!-- Trained Model - Linha Compacta -->
+            <div class="method-row">
+              <div class="method-info">
+                <div class="method-icon-bg bg-green-100">
+                  <svg class="method-icon text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                  </svg>
+                </div>
+                <div class="method-details">
+                  <div class="method-title-row">
+                    <h4 class="method-title">Modelo Treinado</h4>
+                    <span class="method-badge bg-green-100 text-green-800">EfficientNetV2</span>
+                  </div>
+                  <p class="method-description">Detecção de malignidade com modelo treinado em CBIS-DDSM</p>
+                </div>
+              </div>
+              <button
+                @click="analyzeWithTrainedModel"
+                :disabled="loading"
+                class="btn-analyze-compact bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white"
+              >
+                <svg v-if="!loading" class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                </svg>
+                <svg v-else class="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span v-if="!loading">Analisar com Modelo</span>
+                <span v-else>Analisando...</span>
+              </button>
+            </div>
             
             <!-- Status de Erro -->
             <div v-if="error" class="error-compact">
@@ -176,7 +208,7 @@
             <!-- Dica Compacta -->
             <div v-else class="tip-compact">
               <div class="tip-icon">💡</div>
-<span>Análise avançada com IA para classificação BI-RADS</span>
+<span>Análise avançada com IA para classificação BI-RADS ou detecção de malignidade</span>
             </div>
           </div>
 
@@ -238,6 +270,51 @@
           </div>
         </div>
       </div>
+
+      <!-- Visualização do Diagnóstico (Modelo Treinado) -->
+      <div v-if="visualizationFilename" class="mt-6">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div class="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-green-50 to-emerald-50">
+            <div class="flex items-center">
+              <div class="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center mr-3">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <div>
+                <h3 class="text-lg font-bold text-green-900">Visualização do Diagnóstico</h3>
+                <p class="text-sm text-green-700">Análise visual gerada pelo modelo treinado</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="p-6 bg-gray-50">
+            <div class="bg-white rounded-lg p-4 shadow-inner">
+              <img
+                :src="getImageUrl(visualizationFilename)"
+                :alt="`Diagnóstico de ${analysis?.originalFilename}`"
+                class="w-full h-auto rounded-lg shadow-lg"
+                @error="handleVisualizationError"
+              />
+            </div>
+            <div class="mt-4 text-center">
+              <p class="text-sm text-gray-600 mb-3">
+                <strong>Legenda:</strong> Esquerda - Imagem Original | Centro - Análise da Rede Neural | Direita - Região de Interesse
+              </p>
+              <a
+                :href="getImageUrl(visualizationFilename)"
+                :download="`diagnosis_${analysis?.originalFilename}`"
+                class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors duration-200 shadow-sm"
+              >
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Baixar Imagem de Diagnóstico
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
   </div>
@@ -288,6 +365,7 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 const activeTab = ref('gemini')
 const showAnalysisOptions = ref(false)
+const visualizationFilename = ref<string | null>(null)
 
 // Computed
 const hasAnalysis = computed(() => {
@@ -297,7 +375,23 @@ const hasAnalysis = computed(() => {
 const analysisTabs = computed(() => {
   const tabs = []
   if (analysis.value?.results?.gemini) {
-    tabs.push({ id: 'gemini', name: 'Gemini AI' })
+    // Detectar se é do modelo treinado ou Gemini baseado no conteúdo
+    const content = analysis.value.results.gemini
+    const isTrainedModel = content.includes('EfficientNetV2') || content.includes('Modelo Treinado')
+    
+    if (isTrainedModel) {
+      tabs.push({ id: 'trained', name: 'Modelo Treinado (EfficientNetV2)' })
+      // Definir aba ativa automaticamente
+      if (activeTab.value === 'gemini') {
+        activeTab.value = 'trained'
+      }
+    } else {
+      tabs.push({ id: 'gemini', name: 'Gemini AI' })
+      // Definir aba ativa automaticamente
+      if (activeTab.value !== 'gemini') {
+        activeTab.value = 'gemini'
+      }
+    }
   }
   return tabs
 })
@@ -318,6 +412,37 @@ const analyzeImage = async () => {
   } catch (error) {
     console.error('❌ Erro na análise com Gemini:', error)
     error.value = error.message || 'Erro na análise com Gemini'
+  } finally {
+    loading.value = false
+  }
+}
+
+const analyzeWithTrainedModel = async () => {
+  if (!analysis.value) return
+  try {
+    loading.value = true
+    error.value = null
+    console.log('🔄 Iniciando análise com modelo treinado...')
+    
+    const response = await analysisStore.analyzeWithTrainedModel(analysis.value.id)
+    
+    // Armazenar o nome do arquivo de visualização se disponível ANTES de recarregar
+    const vizFilename = response?.visualizationFilename || null
+    console.log('📊 Visualization filename recebido:', vizFilename)
+    
+    // Recarregar análise
+    await loadAnalysis()
+    
+    // Restaurar o filename após recarregar (pois não está no banco)
+    if (vizFilename) {
+      visualizationFilename.value = vizFilename
+      console.log('📊 Visualization filename definido:', visualizationFilename.value)
+    }
+    
+    console.log('✅ Análise com modelo treinado concluída')
+  } catch (error) {
+    console.error('❌ Erro na análise com modelo treinado:', error)
+    error.value = error.message || 'Erro na análise com modelo treinado'
   } finally {
     loading.value = false
   }
@@ -430,9 +555,66 @@ const extractValue = (text: string, regex: RegExp): string | null => {
 
 
 const getActiveAnalysisContent = () => {
-  if (activeTab.value === 'gemini' && analysis.value?.results?.gemini) {
-    const technicalAnalysis = marked(analysis.value.results.gemini)
-    const userFriendlyExplanation = generateUserFriendlyExplanation(analysis.value.results.gemini)
+  const content = analysis.value?.results?.gemini
+  if (!content) return ''
+  
+  // Detectar se é do modelo treinado
+  const isTrainedModel = content.includes('EfficientNetV2') || content.includes('Modelo Treinado')
+  
+  if (activeTab.value === 'trained' || (activeTab.value === 'gemini' && isTrainedModel)) {
+    // Renderizar resultado do modelo treinado com melhor espaçamento
+    const analysisHtml = marked(content)
+    
+    return `
+      <div class="space-y-8">
+        <!-- Análise do Modelo Treinado -->
+        <div class="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 border border-green-200 shadow-sm">
+          <div class="flex items-center mb-4">
+            <div class="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center mr-3">
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+              </svg>
+            </div>
+            <div>
+              <h4 class="text-lg font-bold text-green-900">Análise com Modelo Treinado (EfficientNetV2)</h4>
+              <p class="text-sm text-green-700">Detecção de malignidade baseada em rede neural treinada</p>
+            </div>
+          </div>
+          <div class="prose prose-green max-w-none">
+            <div class="trained-model-content text-base leading-relaxed">
+              ${analysisHtml}
+            </div>
+          </div>
+        </div>
+
+        <!-- Disclaimer Médico -->
+        <div class="bg-amber-50 rounded-xl p-6 border border-amber-200 shadow-sm">
+          <div class="flex items-start">
+            <div class="flex-shrink-0">
+              <svg class="w-6 h-6 text-amber-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.464 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
+            <div class="ml-3">
+              <h4 class="text-base font-bold text-amber-900 mb-3">⚠️ Aviso Importante</h4>
+              <p class="text-sm text-amber-800 leading-relaxed mb-3">
+                <strong>Esta é uma ferramenta auxiliar de análise por inteligência artificial.</strong> 
+                Os resultados apresentados não substituem o diagnóstico médico profissional.
+              </p>
+              <p class="text-sm text-amber-800 leading-relaxed">
+                É fundamental que um médico radiologista qualificado avalie as imagens e emita o laudo oficial. 
+                Sempre consulte um profissional de saúde para interpretação adequada dos resultados.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    `
+  }
+  
+  if (activeTab.value === 'gemini' && !isTrainedModel) {
+    const technicalAnalysis = marked(content)
+    const userFriendlyExplanation = generateUserFriendlyExplanation(content)
     
     return `
       <div class="space-y-6">
@@ -532,8 +714,68 @@ const handleImageError = (event: Event) => {
   // Mas mantemos o handler para debug
 }
 
+const handleVisualizationError = (event: Event) => {
+  // Handler para erro de carregamento da visualização
+  const img = event.target as HTMLImageElement
+  console.error('Erro ao carregar visualização de diagnóstico:', {
+    src: img.src,
+    alt: img.alt
+  })
+  // Tentar recarregar ou mostrar mensagem
+}
+
 // Lifecycle
 onMounted(() => {
   loadAnalysis()
 })
 </script>
+
+<style scoped>
+/* Melhorar espaçamento do conteúdo do modelo treinado */
+.trained-model-content :deep(h1) {
+  @apply text-2xl font-bold text-green-900 mb-4 mt-6;
+}
+
+.trained-model-content :deep(h2) {
+  @apply text-xl font-bold text-green-800 mb-3 mt-5;
+}
+
+.trained-model-content :deep(h3) {
+  @apply text-lg font-semibold text-green-700 mb-3 mt-4;
+}
+
+.trained-model-content :deep(h4) {
+  @apply text-base font-semibold text-green-700 mb-2 mt-3;
+}
+
+.trained-model-content :deep(p) {
+  @apply mb-4 leading-relaxed text-gray-700;
+}
+
+.trained-model-content :deep(ul),
+.trained-model-content :deep(ol) {
+  @apply mb-4 ml-6;
+}
+
+.trained-model-content :deep(li) {
+  @apply mb-2 leading-relaxed;
+}
+
+.trained-model-content :deep(strong) {
+  @apply font-bold text-gray-900;
+}
+
+.trained-model-content :deep(hr) {
+  @apply my-6 border-gray-300;
+}
+
+.trained-model-content :deep(blockquote) {
+  @apply pl-4 border-l-4 border-green-400 italic my-4;
+}
+
+/* Espaçamento extra entre seções principais */
+.trained-model-content :deep(h1:not(:first-child)),
+.trained-model-content :deep(h2:not(:first-child)) {
+  @apply pt-4;
+}
+</style>

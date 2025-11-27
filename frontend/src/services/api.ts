@@ -109,6 +109,12 @@ class ApiService {
     return adaptAnalysisResponse(response.data)
   }
 
+  // Analisar imagem com modelo treinado (EfficientNetV2)
+  async analyzeWithTrainedModel(id: number): Promise<AnalysisResponse> {
+    const response = await this.api.post(`/api/v1/analyze-trained-model/${id}`)
+    return adaptAnalysisResponse(response.data)
+  }
+
   // Excluir análise
   async deleteAnalysis(id: number): Promise<{ message: string; analysisId: number; filename: string }> {
     const response = await this.api.delete(`/api/v1/analysis/${id}`)

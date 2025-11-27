@@ -11,3 +11,6 @@ opencv-python-headless
 numpy
 requests
 pydicom
+tensorflow
+keras
+matplotlib

@@ -190,6 +190,64 @@ export const useAnalysisStore = defineStore('analysis', () => {
     }
   }
 
+  async function analyzeWithTrainedModel(id: number): Promise<AnalysisResponse> {
+    try {
+      loading.value = true
+      error.value = null
+
+      // Atualizar status para processando
+      const analysis = analyses.value.find(a => a.id === id)
+      if (analysis) {
+        analysis.status = 'processing' as const
+      }
+
+      // Notificação de início da análise
+      info('Análise Iniciada', 'Processando imagem com modelo treinado...')
+
+      const response = await apiService.analyzeWithTrainedModel(id)
+
+      // Atualizar status na lista
+      if (analysis) {
+        analysis.status = response.status as 'uploaded' | 'processing' | 'completed' | 'error'
+        analysis.is_processed = response.status === 'completed'
+        analysis.has_analysis = !!response.analysis
+        analysis.processing_date = new Date().toISOString()
+      }
+
+      // Atualizar análise atual se for a mesma
+      if (currentAnalysis.value?.id === id) {
+        currentAnalysis.value.status = response.status as 'uploaded' | 'processing' | 'completed' | 'error'
+        currentAnalysis.value.is_processed = response.status === 'completed'
+        if (response.analysis) {
+          currentAnalysis.value.results.gemini = response.analysis
+        }
+      }
+
+      // Notificação de sucesso
+      if (response.status === 'completed') {
+        success('Análise Concluída', 'Processamento com modelo treinado finalizado com sucesso!')
+      }
+
+      return response
+    } catch (err: any) {
+      error.value = err.response?.data?.detail || err.message || 'Erro na análise com modelo treinado'
+
+      // Atualizar status para erro
+      const analysis = analyses.value.find(a => a.id === id)
+      if (analysis) {
+        analysis.status = 'error' as const
+        analysis.error_message = error.value || undefined
+      }
+
+      // Notificação de erro
+      showError('Erro na Análise', error.value || 'Erro desconhecido')
+
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   async function deleteAnalysis(id: number) {
     try {
       console.log('🗑️ Store: Iniciando exclusão da análise:', id)
@@ -251,6 +309,7 @@ export const useAnalysisStore = defineStore('analysis', () => {
     fetchAnalysis,
     uploadImage,
     analyzeImage,
+    analyzeWithTrainedModel,
     deleteAnalysis,
     clearError,
     clearCurrentAnalysis,
