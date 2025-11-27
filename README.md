@@ -1,295 +1,239 @@
-# Plataforma de Análise de Mamografias com IA
+# Mamografia IA
 
-Sistema completo para análise inteligente de imagens de mamografia utilizando múltiplas APIs de IA com arquitetura híbrida robusta.
-
-[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)](https://fastapi.tiangolo.com)
-[![Vue.js](https://img.shields.io/badge/Vue.js-3.4+-4FC08D.svg)](https://vuejs.org)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6.svg)](https://typescriptlang.org)
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/Status-Produção-success.svg)](https://github.com/Felipensct/mamografia-ia-analysis)
+Plataforma de análise automatizada de mamografias utilizando inteligência artificial para classificação BI-RADS e detecção de anomalias.
 
 ## Visão Geral
 
-A plataforma implementa um sistema híbrido de análise de mamografias com três camadas de Inteligência Artificial:
+Sistema web desenvolvido para auxiliar profissionais de saúde na análise de imagens mamográficas através de algoritmos de IA avançados. A plataforma oferece análise técnica detalhada seguindo padrões MIAS (Mammographic Image Analysis Society) e classificação BI-RADS.
 
-1. **Google Gemini 2.0 Flash** - Análise médica especializada com classificação BI-RADS
-2. **Hugging Face Transformers** - Complemento técnico computacional
-3. **Análise Local OpenCV** - Fallback robusto sempre disponível
+### Funcionalidades Principais
 
-### Características Principais
+- **Upload de Imagens**: Suporte para formatos DICOM (.dcm), JPEG, PNG e outros formatos médicos
+- **Análise com IA**: Processamento utilizando Google Gemini AI para classificação precisa
+- **Classificação BI-RADS**: Categorização automática de achados mamográficos
+- **Interface Responsiva**: Dashboard moderno e intuitivo para visualização de resultados
+- **Gestão de Análises**: Histórico completo com controle de status e exclusão em lote
 
-- ✅ **Sistema híbrido robusto** que nunca falha
-- ✅ **Classificação BI-RADS** integrada
-- ✅ **Interface moderna** com design system médico
-- ✅ **Análise estruturada** em Markdown com priorização visual
-- ✅ **Clean Architecture** no backend
-- ✅ **TypeScript** no frontend
-- ✅ **Docker** para containerização
-- ✅ **Documentação completa** seguindo padrões da indústria
+### Tecnologias Utilizadas
 
-## Início Rápido
+**Backend**
+- Python 3.12+ com FastAPI
+- SQLAlchemy para persistência de dados
+- Google Generative AI (Gemini)
+- OpenCV para processamento de imagens
+- PyDICOM para manipulação de arquivos médicos
 
-### Instalação Automática (Recomendado)
+**Frontend**
+- Vue.js 3 com Composition API
+- TypeScript para tipagem estática
+- Tailwind CSS para estilização
+- Pinia para gerenciamento de estado
+- Axios para comunicação HTTP
 
-```bash
-# 1. Clone o repositório
-git clone https://github.com/Felipensct/mamografia-ia-analysis.git
-cd mamografia-ia-analysis
-
-# 2. Configure suas chaves de API
-cp Backend/env.example Backend/.env
-nano Backend/.env  # Adicione suas chaves
-
-# 3. Execute o script de inicialização
-./start.sh
-```
-
-### Acesso à Aplicação
-
-- **Frontend**: http://localhost:5173
-- **API Docs**: http://localhost:8000/docs
-- **Health Check**: http://localhost:8000/health
-
-## Documentação
-
-### 📚 Documentação
-
-- **[Arquitetura do Sistema](docs/ARCHITECTURE.md)** - Decisões técnicas e estrutura
-- **[Changelog](docs/CHANGELOG.md)** - Histórico de mudanças e melhorias
+**Infraestrutura**
+- Docker e Docker Compose
+- Nginx como proxy reverso
+- SQLite para desenvolvimento local
 
 ## Arquitetura
 
-### Sistema Híbrido de IA
-
 ```
-┌─────────────────────────────────────────┐
-│          FRONTEND (Vue.js 3)            │
-│  - Upload de imagens                    │
-│  - Visualização de análises             │
-│  - Renderização Markdown                │
-└──────────────┬──────────────────────────┘
-               │
-               ▼
-┌─────────────────────────────────────────┐
-│         BACKEND (FastAPI)               │
-│  - API REST                             │
-│  - Processamento de imagens             │
-│  - Banco de dados SQLite                │
-└──────────────┬──────────────────────────┘
-               │
-    ┌──────────┴──────────┐
-    ▼                     ▼
-┌─────────┐         ┌──────────────┐
-│ Gemini  │         │  Hugging Face│
-│  2.0    │         │  + Local     │
-│ Flash   │         │  OpenCV      │
-└─────────┘         └──────────────┘
-   (Principal)        (Complemento)
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│     Frontend    │    │     Backend     │    │   AI Services   │
+│   (Vue.js 3)    │◄──►│   (FastAPI)     │◄──►│  (Gemini AI)    │
+│   Port: 5173    │    │   Port: 8000    │    │                 │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │
+         └───────────────────────┘
+                   │
+         ┌─────────────────┐
+         │     Nginx       │
+         │   Port: 80      │
+         └─────────────────┘
 ```
 
-### Stack Tecnológico
+## Instalação e Configuração
+
+### Pré-requisitos
+
+- Docker e Docker Compose
+- Node.js 20.19+ ou 22.12+
+- Python 3.12+
+- Chave de API do Google Gemini
+
+### Configuração Rápida
+
+1. **Clone o repositório**
+   ```bash
+   git clone <repository-url>
+   cd ProjetosIV
+   ```
+
+2. **Configure as variáveis de ambiente**
+   ```bash
+   cp env.example .env
+   ```
+   
+   Edite o arquivo `.env` com suas chaves de API:
+   ```env
+   GEMINI_API_KEY=sua_chave_gemini_aqui
+   HUGGINGFACE_API_KEY=sua_chave_huggingface_aqui
+   ```
+
+3. **Execute com Docker Compose**
+   ```bash
+   docker-compose up -d
+   ```
+
+4. **Acesse a aplicação**
+   - Interface web: http://localhost
+   - API backend: http://localhost:8000
+   - Documentação API: http://localhost:8000/docs
+
+### Instalação Manual
 
 **Backend**
-- FastAPI (Python 3.11+)
-- SQLAlchemy ORM
-- OpenCV para processamento de imagem
-- **PyDICOM para suporte a arquivos DICOM**
-- Google Gemini 2.0 Flash
-- Hugging Face Transformers
+```bash
+cd Backend
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+# ou venv\Scripts\activate  # Windows
+pip install -r requirements.txt
+uvicorn app:app --reload --host 0.0.0.0 --port 8000
+```
 
 **Frontend**
-- Vue.js 3 com TypeScript
-- Tailwind CSS
-- Pinia para estado
-- Marked.js para renderização
-
-## Funcionalidades
-
-### Análise de Imagens
-- Upload de imagens de mamografia (PNG, JPG, JPEG, DICOM)
-- **Suporte completo a arquivos DICOM** do dataset CBIS-DDSM
-- Processamento automático (redimensionamento, contraste)
-- Conversão automática DICOM → JPEG otimizado
-- Preservação de metadados DICOM
-- Análise híbrida com múltiplas IAs
-- Classificação BI-RADS integrada
-- Priorização visual de achados
-
-### Interface do Usuário
-- Dashboard moderno com estatísticas
-- Image viewer com controles de zoom
-- Tabs organizadas por tipo de análise
-- Renderização Markdown estruturada
-- Sistema de notificações Toast
-
-### Sistema Robusto
-- Fallback inteligente entre IAs
-- Análise local sempre disponível
-- Validação rigorosa de arquivos
-- Logs estruturados
-- Health checks
-
-## Configuração
-
-### Variáveis de Ambiente
-
-**Backend (.env)**
-```env
-GEMINI_API_KEY=your_gemini_api_key_here
-HUGGINGFACE_API_KEY=your_huggingface_api_key_here
-BACKEND_HOST=0.0.0.0
-BACKEND_PORT=8000
-```
-
-**Frontend (.env.local)**
-```env
-VITE_API_URL=http://localhost:8000
-```
-
-### Chaves de API Necessárias
-
-1. **Google Gemini**: [Obter chave](https://makersuite.google.com/app/apikey)
-2. **Hugging Face**: [Obter token](https://huggingface.co/settings/tokens)
-
-## Execução
-
-### Desenvolvimento
 ```bash
-# Backend
-cd Backend
-source venv/bin/activate
-python app.py
-
-# Frontend (novo terminal)
 cd frontend
+npm install
 npm run dev
 ```
 
-### Produção
-```bash
-# Docker Compose
-docker-compose up -d
+## Uso da Aplicação
 
-# Ou com systemd (após instalação completa)
-mamografia start
+### Fluxo de Análise
+
+1. **Upload de Imagem**: Faça upload de uma mamografia nos formatos suportados
+2. **Processamento**: O sistema converte e processa a imagem automaticamente
+3. **Análise com IA**: Clique em "Analisar com Gemini" para iniciar a análise
+4. **Visualização**: Revise os resultados técnicos e a explicação simplificada
+5. **Gestão**: Gerencie o histórico de análises na dashboard principal
+
+### Formatos Suportados
+
+- **DICOM** (.dcm) - Formato padrão médico
+- **JPEG** (.jpg, .jpeg) - Imagens comprimidas
+- **PNG** (.png) - Imagens sem compressão
+- **TIFF** (.tiff, .tif) - Imagens de alta qualidade
+- **BMP** (.bmp) - Bitmap
+- **PGM** (.pgm) - Portable Graymap
+
+### Estrutura da Resposta IA
+
+A análise retorna informações estruturadas seguindo padrões MIAS:
+
+- **Tipo de tecido**: Classificação da densidade mamária (F/G/D)
+- **Classe de anormalidade**: Tipo de achado (CALC/MASS/ARCH/ASYM)
+- **Severidade**: Classificação BI-RADS (B/M/U)
+- **Localização**: Coordenadas e raio da anomalia
+- **Explicação**: Interpretação em linguagem acessível
+
+## Estrutura do Projeto
+
+```
+ProjetosIV/
+├── Backend/                 # API FastAPI
+│   ├── app.py              # Aplicação principal
+│   ├── services/           # Serviços de IA
+│   ├── requirements.txt    # Dependências Python
+│   └── uploads/           # Armazenamento de imagens
+├── frontend/              # Interface Vue.js
+│   ├── src/
+│   │   ├── components/    # Componentes reutilizáveis
+│   │   ├── views/         # Páginas da aplicação
+│   │   ├── services/      # Comunicação com API
+│   │   └── stores/        # Gerenciamento de estado
+│   └── package.json       # Dependências Node.js
+├── docs/                  # Documentação técnica
+├── docker-compose.yml     # Orquestração de containers
+└── nginx.conf            # Configuração do proxy
 ```
 
 ## API Endpoints
 
-### Upload e Gerenciamento
-- `POST /api/v1/upload` - Upload de imagem
+### Principais Rotas
+
+- `GET /health` - Status da aplicação
+- `POST /api/v1/upload` - Upload de imagens
 - `GET /api/v1/analyses` - Listar análises
-- `GET /api/v1/analysis/{id}` - Detalhes da análise
+- `GET /api/v1/analysis/{id}` - Detalhes de análise
+- `POST /api/v1/analyze/{id}` - Executar análise IA
 - `DELETE /api/v1/analysis/{id}` - Excluir análise
 
-### Análise com IA
-- `POST /api/v1/analyze/{id}` - Análise com Gemini
-- `POST /api/v1/analyze-huggingface/{id}` - Análise com Hugging Face
+### Documentação Completa
 
-### Utilitários
-- `GET /health` - Status da API
-- `GET /uploads/{filename}` - Servir imagens
-- `GET /docs` - Swagger UI
+Acesse http://localhost:8000/docs para documentação interativa da API.
 
-## Suporte DICOM
+## Desenvolvimento
 
-### Dataset CBIS-DDSM
-O projeto agora suporta arquivos DICOM do dataset **CBIS-DDSM** (Curated Breast Imaging Subset of DDSM), um dos principais datasets públicos para pesquisa em mamografia.
+### Scripts Disponíveis
 
-### Instalação do Suporte DICOM
+**Frontend**
 ```bash
-# Instalar dependências DICOM
-cd Backend
-./install_dicom_support.sh
-
-# Ou manualmente
-pip install pydicom
+npm run dev          # Servidor de desenvolvimento
+npm run build        # Build para produção
+npm run type-check   # Verificação de tipos
+npm run lint         # Linting e formatação
 ```
 
-### Formatos Suportados
-- **DICOM (.dcm)** - Dataset CBIS-DDSM e outros datasets médicos
-- **PNG (.png)** - Imagens padrão
-- **JPEG (.jpg, .jpeg)** - Imagens comprimidas
-
-### Características do Suporte DICOM
-- ✅ **Conversão automática** DICOM → JPEG otimizado
-- ✅ **Preservação de metadados** (Patient ID, Study Date, etc.)
-- ✅ **Windowing automático** para melhor visualização
-- ✅ **Normalização de pixels** para análise de IA
-- ✅ **Validação de integridade** do arquivo DICOM
-
-### Teste com DICOM
+**Backend**
 ```bash
-# 1. Coloque um arquivo .dcm na pasta Backend/
-# 2. Execute o teste
-cd Backend
-python test_dicom_support.py
+python test_api.py   # Testes da API
+python migrate_database.py  # Migração do banco
 ```
 
-## Testes
+### Padrões de Código
 
-### Backend
-```bash
-cd Backend
-python test_api.py
-python test_huggingface_analysis.py
-python test_dicom_support.py  # Teste específico para DICOM
-```
+- **Clean Architecture** para organização de código
+- **TypeScript** para tipagem estática no frontend
+- **Pydantic** para validação de dados no backend
+- **ESLint** e **Prettier** para formatação consistente
 
-### Frontend
-```bash
-cd frontend
-npm run test
-```
+## Limitações e Considerações
 
-## Troubleshooting
+### Técnicas
 
-### Problemas Comuns
+- Análise limitada a imagens 2D
+- Processamento sequencial (não paralelo)
+- Armazenamento local (SQLite)
+- Dependência de conectividade para APIs externas
 
-**Erro: "Address already in use"**
-```bash
-sudo lsof -ti:8000 | xargs sudo kill -9
-sudo lsof -ti:5173 | xargs sudo kill -9
-```
+### Médicas
 
-**Erro: "API Key not found"**
-```bash
-cat Backend/.env | grep API_KEY
-```
-
-**Erro: "table analyses has no column named info"**
-```bash
-cd Backend
-python migrate_database.py
-```
+- **Ferramenta auxiliar**: Não substitui diagnóstico médico profissional
+- **Validação necessária**: Resultados devem ser validados por radiologista
+- **Uso educacional**: Adequado para treinamento e segunda opinião
 
 ## Contribuição
 
 1. Fork o projeto
 2. Crie uma branch para sua feature (`git checkout -b feature/nova-funcionalidade`)
-3. Commit suas mudanças (`git commit -m 'feat: adiciona nova funcionalidade'`)
+3. Commit suas mudanças (`git commit -m 'Adiciona nova funcionalidade'`)
 4. Push para a branch (`git push origin feature/nova-funcionalidade`)
 5. Abra um Pull Request
 
-## Equipe
-
-- **Felipe Nascimento da Silva** - Desenvolvimento Full-Stack
-- **Enzo Carvalho Mattiotti dos Reis** - Desenvolvimento Backend
-- **João Pedro Carvalho** - Desenvolvimento Frontend
-
-**Universidade do Vale do Paraíba - Projetos IV - 2025**
-
 ## Licença
 
-Este projeto está licenciado sob a [Licença MIT](LICENSE).
+Este projeto está licenciado sob a Licença MIT. Consulte o arquivo LICENSE para detalhes.
 
 ## Suporte
 
-- **Email**: felipe.nascimento@univap.br
-- **GitHub**: [@Felipensct](https://github.com/Felipensct)
-- **Issues**: [GitHub Issues](https://github.com/Felipensct/mamografia-ia-analysis/issues)
+Para questões técnicas ou sugestões:
+
+- Abra uma issue no repositório
+- Consulte a documentação em `/docs`
+- Verifique os logs da aplicação para debugging
 
 ---
 
-**Desenvolvido para fins acadêmicos - UNIVAP 2025**
+**Aviso Legal**: Esta aplicação é destinada apenas para fins educacionais e de pesquisa. Não deve ser utilizada como única ferramenta para diagnóstico médico. Sempre consulte um profissional de saúde qualificado para interpretação de resultados médicos.
