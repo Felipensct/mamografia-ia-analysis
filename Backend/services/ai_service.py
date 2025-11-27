@@ -4,6 +4,7 @@ import json
 import base64
 import cv2
 import numpy as np
+import hashlib
 from typing import Optional, Dict, Any
 from dotenv import load_dotenv
 from PIL import Image, ImageEnhance, ImageFilter
@@ -15,8 +16,6 @@ class AIService:
     def __init__(self):
         self.gemini_api_key = os.getenv("GEMINI_API_KEY")
         self.hf_api_key = os.getenv("HUGGINGFACE_API_KEY")
-        self.cohere_api_key = os.getenv("COHERE_API_KEY")
-        self.anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
         
         # APIs disponíveis
         self.available_apis = []
@@ -24,18 +23,31 @@ class AIService:
             self.available_apis.append("gemini")
         if self.hf_api_key:
             self.available_apis.append("huggingface")
-        if self.cohere_api_key:
-            self.available_apis.append("cohere")
-        if self.anthropic_api_key:
-            self.available_apis.append("anthropic")
     
     def get_available_apis(self) -> list:
         """Retorna lista de APIs disponíveis"""
         return self.available_apis
         
+    def _calculate_image_hash(self, image_path: str) -> str:
+        """
+        Calcula hash MD5 da imagem para garantir consistência
+        
+        Args:
+            image_path: Caminho da imagem
+            
+        Returns:
+            Hash MD5 em hexadecimal
+        """
+        hash_md5 = hashlib.md5()
+        with open(image_path, "rb") as f:
+            for chunk in iter(lambda: f.read(4096), b""):
+                hash_md5.update(chunk)
+        return hash_md5.hexdigest()
+    
     def preprocess_image(self, image_path: str) -> str:
         """
         Pré-processa imagem para melhor análise de IA com foco em mamografia
+        Processamento consistente e determinístico - preserva características originais
         
         Args:
             image_path: Caminho da imagem original
@@ -46,40 +58,48 @@ class AIService:
         try:
             # Carregar imagem
             with Image.open(image_path) as img:
-                print(f"🖼️  Processando imagem: {img.size}, modo: {img.mode}")
+                original_mode = img.mode
+                print(f"🖼️  Processando imagem: {img.size}, modo: {original_mode}")
                 
-                # 1. CONVERTER PARA ESCALA DE CINZA (preto e branco)
-                if img.mode != 'L':
+                # Para PGM, preservar modo original se já for escala de cinza
+                is_pgm = image_path.lower().endswith('.pgm')
+                
+                # 1. CONVERSÃO DE MODO (preservar características originais)
+                if is_pgm and img.mode in ['L', 'I', 'F']:
+                    # PGM já está em escala de cinza, manter modo original
+                    print("📷 PGM mantido em modo original (escala de cinza)")
+                elif img.mode != 'L':
+                    # Converter outros formatos para escala de cinza
                     img = img.convert('L')
                     print("📷 Convertido para escala de cinza")
                 
-                # 2. OTIMIZAR CONTRASTE para mamografia
+                # 2. OTIMIZAR CONTRASTE (valor reduzido para preservar características)
                 enhancer = ImageEnhance.Contrast(img)
-                img = enhancer.enhance(1.3)  # Aumentado de 1.2 para 1.3
-                print("🎨 Contraste otimizado para mamografia")
+                img = enhancer.enhance(1.15)  # Reduzido de 1.3 para 1.15
+                print("🎨 Contraste otimizado (preservando características)")
                 
-                # 3. APLICAR NITIDEZ AVANÇADA
-                # Filtro UnsharpMask mais agressivo para melhorar detalhes
-                img = img.filter(ImageFilter.UnsharpMask(radius=1.5, percent=200, threshold=2))
-                print("🔍 Nitidez melhorada para análise médica")
+                # 3. APLICAR NITIDEZ (parâmetros reduzidos para menos agressividade)
+                img = img.filter(ImageFilter.UnsharpMask(radius=1.0, percent=150, threshold=3))
+                print("🔍 Nitidez melhorada (parâmetros conservadores)")
                 
-                # 4. AJUSTAR BRILHO para melhor visualização
+                # 4. AJUSTAR BRILHO (valor mínimo para preservar histograma original)
                 enhancer = ImageEnhance.Brightness(img)
-                img = enhancer.enhance(1.05)  # Reduzido para 1.05 para não saturar
-                print("💡 Brilho ajustado para análise médica")
+                img = enhancer.enhance(1.02)  # Reduzido de 1.05 para 1.02
+                print("💡 Brilho ajustado (mínimo necessário)")
                 
-                # 5. APLICAR FILTRO DE REALCE DE BORDAS
-                # Melhorar definição de estruturas
-                img = img.filter(ImageFilter.EDGE_ENHANCE_MORE)
-                print("📐 Bordas realçadas para melhor definição")
+                # 5. REALCE DE BORDAS (removido - muito agressivo para PGM)
+                # Mantido apenas para não-PGM se necessário
+                if not is_pgm:
+                    img = img.filter(ImageFilter.EDGE_ENHANCE)
+                    print("📐 Bordas realçadas (apenas para não-PGM)")
                 
-                # 6. REDIMENSIONAR para tamanho otimizado
+                # 6. REDIMENSIONAR para tamanho otimizado (tamanho fixo para consistência)
                 img.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
                 print(f"📏 Redimensionado para: {img.size}")
                 
-                # 7. SALVAR com alta qualidade
+                # 7. SALVAR com alta qualidade (qualidade fixa para consistência)
                 processed_path = image_path.replace('.', '_processed.')
-                img.save(processed_path, 'JPEG', quality=98, optimize=True)
+                img.save(processed_path, 'JPEG', quality=98, optimize=False)  # optimize=False para consistência
                 print(f"💾 Imagem processada salva: {processed_path}")
                 
                 return processed_path
@@ -88,12 +108,13 @@ class AIService:
             print(f"❌ Erro no pré-processamento: {str(e)}")
             return image_path  # Retorna original se houver erro
         
-    def analyze_mammography(self, image_path: str) -> Dict[str, Any]:
+    def analyze_mammography(self, image_path: str, image_id: Optional[str] = None) -> Dict[str, Any]:
         """
         Analisa imagem de mamografia usando Google Gemini Vision
         
         Args:
             image_path: Caminho para a imagem
+            image_id: Identificador único da imagem (opcional, será gerado se não fornecido)
             
         Returns:
             Dict com resultado da análise
@@ -108,134 +129,350 @@ class AIService:
         try:
             import google.generativeai as genai
             
+            print("🔄 Iniciando análise com Gemini...")
+            
             # Configurar a API
             genai.configure(api_key=self.gemini_api_key)
             
-            # Configurar o modelo
-            model = genai.GenerativeModel('gemini-2.0-flash')
+            # Gerar identificador único baseado no hash da imagem para consistência
+            if image_id is None:
+                image_hash = self._calculate_image_hash(image_path)
+                image_id = f"img_{image_hash[:12]}"
+            
+            print(f"🆔 Identificador da imagem: {image_id}")
+            
+            # Configurar modelo com parâmetros para máximo determinismo
+            generation_config = {
+                "temperature": 0.0,  # Temperatura zero para máximo determinismo
+                "top_p": 0.95,
+                "top_k": 40,
+            }
+            
+            model = genai.GenerativeModel(
+                'gemini-2.5-pro',
+                generation_config=generation_config
+            )
             
             # Pré-processar imagem para melhor análise
             processed_image_path = self.preprocess_image(image_path)
             
             # Prompt otimizado para detecção de câncer de mama em estágios iniciais
-            prompt = """
-            Analise esta imagem de mamografia com foco na detecção precoce de alterações que podem indicar câncer de mama em estágios iniciais. Forneça uma análise técnica detalhada em português brasileiro, formatada em Markdown.
+            # IMPORTANTE: Usar identificador real em vez de pedir ao modelo para inventar
+            prompt = f"""
+            🧠 Prompt Detalhado — Análise de Mamografia (Formato MIAS - Dataset MIAS)
 
-            # ESTRUTURA DA ANÁLISE (use exatamente este formato):
+            📐 ESPECIFICAÇÕES TÉCNICAS DO DATASET MIAS:
 
-            ## 1. QUALIDADE TÉCNICA DA IMAGEM
-            Avalie cada aspecto com nível de confiança (Alta/Média/Baixa):
-            - **Resolução e Nitidez**: [Descrever qualidade] - Confiança: [Alta/Média/Baixa]
-            - **Contraste e Brilho**: [Adequado para visualização de densidades?]
-            - **Artefatos**: [Presentes/Ausentes - descrever se houver]
-            - **Qualidade da Exposição**: [Avaliação da penetração dos raios-X]
+            - Todas as imagens têm tamanho fixo: 1024 pixels x 1024 pixels
+            - Imagens estão centralizadas na matriz
+            - Sistema de coordenadas: origem (0,0) no CANTO INFERIOR ESQUERDO
+            - Eixo X: aumenta da esquerda para direita (0 a 1023)
+            - Eixo Y: aumenta de baixo para cima (0 a 1023)
 
-            ## 2. ANATOMIA E POSICIONAMENTO
-            - **Estruturas Identificáveis**: [Listar tecido glandular, gordura, pele, etc.]
-            - **Posicionamento**: [Adequado/Inadequado - justificar]
-            - **Cobertura**: [Completa/Parcial do tecido mamário]
-            - **Simetria**: [Se aplicável]
+            Você é uma inteligência artificial especializada em análise de imagens médicas, com foco em mamografias.
+            Sua tarefa é analisar a imagem fornecida e gerar uma descrição estruturada no formato MIAS (Mammographic Image Analysis Society), conforme as especificações do dataset MIAS abaixo.
 
-            ## 3. DENSIDADE E PADRÃO DO TECIDO
-            - **Classificação BI-RADS de Densidade**: [A/B/C/D]
-              - A: Predominantemente gorduroso
-              - B: Densidades fibroglandulares esparsas
-              - C: Heterogeneamente denso
-              - D: Extremamente denso
-            - **Distribuição**: [Homogênea/Heterogênea]
-            - **Padrões Anormais**: [Descrever áreas específicas]
+            🩻 Objetivo
 
-            ## 4. ACHADOS PRIORITÁRIOS (⚠️ CRÍTICO)
-            
-            ### 🔴 ACHADOS CRÍTICOS (requerem atenção imediata):
-            [Liste aqui APENAS achados altamente suspeitos]
-            - [Achado 1]: Localização, características, nível de suspeita
-            
-            ### 🟡 ACHADOS IMPORTANTES (requerem investigação):
-            [Liste achados que merecem atenção mas não são imediatamente críticos]
-            - [Achado 1]: Descrição detalhada
-            
-            ### 🟢 OBSERVAÇÕES GERAIS:
-            [Liste características normais ou achados benignos]
+            Identificar o tipo de tecido mamário predominante e classificar a presença, tipo, severidade e localização de eventuais anormalidades detectadas na mamografia.
 
-            ## 5. CARACTERÍSTICAS ESPECÍFICAS DETECTADAS
+            🧩 Formato de Saída Esperado
 
-            ### Microcalcificações
-            - **Presença**: [Sim/Não]
-            - **Padrão**: [Agrupadas/Lineares/Segmentais/Difusas]
-            - **Localização**: [Especificar quadrante/região]
-            - **Morfologia**: [Pontiformes/Pleomórficas/Lineares]
-            - **Suspeita**: [Alta/Média/Baixa]
+            A resposta deve seguir exatamente este formato, com todos os campos preenchidos quando aplicáveis:
 
-            ### Massas/Nódulos
-            - **Presença**: [Sim/Não]
-            - **Localização**: [Especificar]
-            - **Dimensões**: [Estimativa em mm se possível]
-            - **Bordas**: [Circunscritas/Irregulares/Espiculadas/Microlobuladas]
-            - **Densidade**: [Alta/Igual/Baixa em relação ao tecido]
-            - **Suspeita**: [Alta/Média/Baixa]
+            1. Referência MIAS: {image_id}
+            2. Tipo de tecido de fundo: [F / G / D]
+            3. Classe de anormalidade: [CALC / CIRC / SPIC / MISC / ARCH / ASYM / NORM]
+            4. Severidade da anormalidade: [B / M]
+            5. Coordenadas do centro da anormalidade: (x= , y= )
+            6. Raio aproximado: [valor em pixels]
 
-            ### Distorções Arquiteturais
-            - **Presença**: [Sim/Não]
-            - **Localização**: [Especificar]
-            - **Descrição**: [Detalhes do padrão alterado]
+            Nota: Se não houver anormalidade (classe = NORM), omita os campos 4, 5 e 6.
 
-            ### Assimetrias
-            - **Presença**: [Sim/Não]
-            - **Tipo**: [Global/Focal/Em desenvolvimento]
-            - **Localização**: [Especificar]
+            IMPORTANTE: Use EXATAMENTE a referência MIAS fornecida: {image_id}
+            Não invente ou altere este identificador.
 
-            ## 6. CLASSIFICAÇÃO BI-RADS SUGERIDA
-            **Categoria**: [0/1/2/3/4/5/6]
-            - 0: Avaliação adicional necessária
-            - 1: Negativo
-            - 2: Achado benigno
-            - 3: Provavelmente benigno
-            - 4: Anormalidade suspeita
-            - 5: Altamente sugestivo de malignidade
-            - 6: Malignidade comprovada por biópsia
+            🧬 1. Tipo de tecido de fundo (coluna 2 do formato MIAS)
 
-            **Justificativa**: [Explicar categoria escolhida]
+            Classifique o tecido mamário predominante na imagem de acordo com as seguintes categorias:
 
-            ## 7. RECOMENDAÇÕES
-            - [ ] **Imediatas**: [Ações urgentes se categoria BI-RADS ≥ 4]
-            - [ ] **Curto Prazo**: [Seguimento ou exames complementares]
-            - [ ] **Rotina**: [Seguimento normal se categoria BI-RADS ≤ 2]
+            Código	Tipo	Descrição
+            F (Fatty - Gorduroso):
+            - Características: Predominantemente escuro/transparente
+            - Homogeneidade: Alta (pouca variação de densidade)
+            - Percentual estimado: >70% da imagem com baixa densidade
 
-            ## 8. LIMITAÇÕES DA ANÁLISE
-            - [Listar fatores que podem afetar a interpretação]
-            - [Áreas de visibilidade limitada]
-            - [Necessidade de imagens adicionais/complementares]
+            G (Fatty-glandular - Gorduroso-glandular):
+            - Características: MISTO - áreas claras e escuras equilibradas
+            - Homogeneidade: Média (variação moderada)
+            - Percentual estimado: 40-60% denso, 40-60% gorduroso
 
-            ## 9. RESUMO EXECUTIVO
-            **Achados Principais**: [Resumo em 2-3 frases dos achados mais relevantes]
-            **Nível de Urgência**: [Baixo/Moderado/Alto/Crítico]
-            **Próximo Passo Recomendado**: [Ação específica]
+            D (Dense-glandular - Densa-glandular):
+            - Características: Predominantemente claro/denso
+            - Homogeneidade: Média a baixa (variação alta)
+            - Percentual estimado: >60% da imagem com alta densidade
 
-            ---
+            INSTRUÇÃO:
+            Analise a distribuição de densidade na imagem:
+            - Se >70% escuro/transparente → F
+            - Se 40-60% de cada tipo → G
+            - Se >60% claro/denso → D
 
-            ## ⚠️ AVISO MÉDICO-LEGAL
-            Esta análise é uma ferramenta de **triagem computacional** e **NÃO substitui** a avaliação de um radiologista especializado em mastologia. Todos os achados devem ser interpretados por profissional médico qualificado. Em caso de dúvida, sempre optar por investigação adicional.
+            ⚕️ 2. Classe de anormalidade (coluna 3 do formato MIAS)
 
-            ---
+            CRITÉRIOS DIFERENCIAIS CRÍTICOS:
 
-            **INSTRUÇÕES IMPORTANTES**:
-            - Use SEMPRE formato Markdown com cabeçalhos ##
-            - Seja específico em localizações (quadrante, horário do relógio)
-            - Atribua níveis de confiança e suspeita quando relevante
-            - Priorize achados por criticidade (🔴🟡🟢)
-            - Forneça medidas estimadas quando possível
-            - Use terminologia BI-RADS quando aplicável
-            - NÃO forneça diagnóstico definitivo
-            - SEMPRE inclua limitações e recomendações
+            CIRC (Massa circunscrita) - CRITÉRIOS OBRIGATÓRIOS:
+            - DEVE haver uma MASSA VISÍVEL e DEFINIDA
+            - Forma: Arredondada, oval ou elíptica
+            - Bordas: REGULARES, bem definidas, contínuas, suaves
+            - Contraste: Massa claramente mais densa ou menos densa que o tecido circundante
+            - Tamanho: Geralmente > 5mm de diâmetro
+            - Se NÃO houver uma MASSA DEFINIDA, NÃO é CIRC
+
+            ARCH (Distorção arquitetural) - CRITÉRIOS OBRIGATÓRIOS:
+            - NÃO há massa definida, apenas distorção do padrão tecidual
+            - Característica: O tecido mamário normal está distorcido/retraído
+            - Forma: Sem forma definida, apenas padrão alterado
+            - Bordas: Não há bordas de massa, apenas alteração arquitetural
+            - Contraste: Pode não ter contraste claro, apenas padrão alterado
+            - Se houver uma MASSA DEFINIDA, NÃO é ARCH
+
+            DECISÃO CRÍTICA - FLUXO DE DECISÃO:
+            1. Primeiro, identifique se há uma MASSA VISÍVEL e DEFINIDA:
+            - Se SIM → CIRC, SPIC ou MISC (dependendo das bordas)
+            - Se NÃO → ARCH, ASYM ou NORM
+
+            2. Se houver massa:
+            - Bordas REGULARES e forma definida → CIRC
+            - Bordas IRREGULARES com espículas → SPIC
+            - Massa sem forma definida → MISC
+
+            3. Se NÃO houver massa:
+            - Apenas distorção do padrão → ARCH
+            - Assimetria de densidade → ASYM
+            - Nenhuma anormalidade → NORM
+
+            REGRAS DE PRIORIDADE (siga esta ordem):
+            1. Se houver CALC (calcificações), sempre escolha CALC como principal
+            2. Se houver SPIC (massa espiculada), escolha SPIC como segunda prioridade
+            3. Se houver CIRC (massa circunscrita), escolha CIRC como terceira prioridade
+            4. Se houver MISC, ARCH ou ASYM, escolha a que tiver maior área visível
+            5. Se não houver nenhuma anormalidade clara, classifique como NORM
+
+            Código	Tipo de Lesão	Descrição
+            CALC	Calcificação	Pequenas áreas brilhantes indicando depósitos de cálcio. Podem ser agrupadas (clusters) ou difusas.
+            CIRC	Massa circunscrita	Lesão bem definida, bordas regulares, aspecto arredondado ou oval. DEVE haver massa visível.
+            SPIC	Massa espiculada	Lesão com bordas irregulares, prolongamentos lineares, aspecto estrelado.
+            MISC	Massa indefinida	Lesão não claramente circunscrita, sem contornos regulares.
+            ARCH	Distorção arquitetural	Alteração do padrão normal do tecido mamário, SEM massa definida.
+            ASYM	Assimetria	Densidade assimétrica entre mamas ou quadrantes.
+            NORM	Normal	Ausência de anormalidades detectáveis.
+
+            INSTRUÇÃO ESPECIAL PARA CALCIFICAÇÕES:
+            - Se houver múltiplas calcificações, identifique o CLUSTER (agrupamento) mais significativo
+            - As coordenadas devem referir-se ao CENTRO DO CLUSTER, não a calcificações individuais
+            - Se as calcificações estiverem amplamente distribuídas pela imagem (não concentradas), OMITA as coordenadas e o raio
+
+            🧪 3. Severidade da anormalidade (coluna 4 do formato MIAS)
+
+            Determine o caráter benigno ou maligno da anormalidade identificada, com base nos padrões visuais da imagem.
+
+            Código	Significado	Descrição
+            B (Benigna) - CRITÉRIOS OBRIGATÓRIOS:
+            - Bordas: REGULARES, suaves, bem definidas, contínuas
+            - Forma: Simétrica ou levemente assimétrica, definida
+            - Contorno: Contínuo, sem interrupções
+            - Densidade: Homogênea ou levemente heterogênea
+            - Efeito no tecido: Não invasivo, tecido circundante preservado
+
+            M (Maligna) - CRITÉRIOS OBRIGATÓRIOS:
+            - Bordas: IRREGULARES, espiculadas, mal definidas, descontínuas
+            - Forma: Altamente assimétrica, irregular, indefinida
+            - Contorno: Descontínuo, com interrupções
+            - Densidade: Altamente heterogênea
+            - Efeito no tecido: Invasivo, tecido circundante distorcido/retraído
+
+            REGRAS DE CLASSIFICAÇÃO:
+            - Se a massa tem bordas REGULARES e forma definida → B (Benigna)
+            - Se a massa tem bordas IRREGULARES ou espiculadas → M (Maligna)
+            - Se há dúvida entre B e M, escolha B (mais conservador)
+            - CIRC geralmente é B (benigna), mas pode ser M se tiver características suspeitas
+            - SPIC geralmente é M (maligna), mas pode ser B em casos raros
+
+            Instrução para IA:
+            Caso exista uma anormalidade, classifique sua severidade como Benigna (B) ou Maligna (M).
+            Se a imagem for normal (NORM), este campo deve ser omitido.
+
+            📍 4. Localização e dimensão da lesão (colunas 5–7 do formato MIAS)
+
+            IMPORTANTE - ESPECIFICAÇÕES DO DATASET MIAS:
+
+            Sistema de Coordenadas:
+            - Origem (0,0) está no CANTO INFERIOR ESQUERDO da imagem
+            - Eixo X: aumenta da esquerda para direita (0 a 1023)
+            - Eixo Y: aumenta de baixo para cima (0 a 1023)
+            - Todas as imagens têm 1024x1024 pixels
+
+            Coordenadas (x, y):
+            - Representam o CENTRO da anormalidade
+            - Para CALC: coordenadas do CENTRO DO CLUSTER (agrupamento), não de calcificações individuais
+            - Valores devem estar entre 0 e 1023
+
+            Raio:
+            - Representa o raio (em pixels) de um CÍRCULO que ENVOLVE COMPLETAMENTE a anormalidade
+            - O círculo deve ser o menor possível que ainda envolva toda a anormalidade
+            - Para CIRC: raio ≈ metade do diâmetro maior da massa
+            - Para SPIC: inclua todas as espículas no círculo
+            - Para CALC: raio do círculo que envolve o cluster de calcificações
+
+            QUANDO OMITIR COORDENADAS E RAIO:
+            - Se a classe for NORM (normal)
+            - Se as calcificações (CALC) estiverem amplamente distribuídas pela imagem, sem concentração clara em um ponto
+            - Se a anormalidade for difusa e não tiver localização focal definida
+
+            LOCALIZAÇÃO - MÉTODO PASSO A PASSO:
+
+            1. Identifique o CENTRO GEOMÉTRICO da anormalidade:
+            - Para CIRC: centro da massa circular/oval
+            - Para SPIC: centro da massa (ignorar espículas na localização do centro)
+            - Para CALC: centro do cluster de calcificações
+            - Para ARCH: centro da área de distorção
+
+            2. Meça as coordenadas:
+            - X: distância do canto esquerdo (0-1023)
+            - Y: distância do canto inferior (0-1023)
+            - Use o sistema de coordenadas com origem no canto inferior esquerdo
+
+            3. Calcule o raio:
+            - Desenhe um círculo que ENVOLVE COMPLETAMENTE a anormalidade
+            - Use o menor raio possível que ainda envolva tudo
+            - Para CIRC: raio ≈ metade do diâmetro maior
+            - Para SPIC: inclua todas as espículas no círculo
+
+            📚 EXEMPLOS DO DATASET MIAS (Few-Shot Learning)
+
+            Use estes exemplos reais do dataset MIAS como referência para classificação correta:
+
+            EXEMPLO 1 - Massa Circunscrita Benigna (CIRC B):
+            Laudo: mdb002 G CIRC B 522 280 69
+            Características: Tecido G (gorduroso-glandular), massa circunscrita bem definida, benigna, localizada em (522, 280) com raio 69
+
+            EXEMPLO 2 - Massa Circunscrita Benigna (CIRC B):
+            Laudo: mdb001 G CIRC B 535 425 197
+            Características: Tecido G, massa circunscrita grande (raio 197), benigna, localizada em (535, 425)
+
+            EXEMPLO 3 - Massa Circunscrita Benigna (CIRC B):
+            Laudo: mdb010 F CIRC B 525 425 33
+            Características: Tecido F (gorduroso), massa circunscrita pequena (raio 33), benigna, localizada em (525, 425)
+
+            EXEMPLO 4 - Massa Circunscrita Maligna (CIRC M):
+            Laudo: mdb023 G CIRC M 538 681 29
+            Características: Tecido G, massa circunscrita, mas com características malignas (bordas irregulares ou suspeitas), localizada em (538, 681)
+
+            EXEMPLO 5 - Distorção Arquitetural Maligna (ARCH M):
+            Laudo: mdb115 G ARCH M 461 532 117
+            Características: Tecido G, distorção arquitetural (SEM massa definida), maligna, localizada em (461, 532) com raio 117
+
+            EXEMPLO 6 - Distorção Arquitetural Benigna (ARCH B):
+            Laudo: mdb121 G ARCH B 492 434 87
+            Características: Tecido G, distorção arquitetural (SEM massa definida), benigna, localizada em (492, 434) com raio 87
+
+            EXEMPLO 7 - Massa Espiculada Benigna (SPIC B):
+            Laudo: mdb145 D SPIC B 669 543 49
+            Características: Tecido D (denso), massa espiculada (bordas irregulares com espículas), benigna, localizada em (669, 543)
+
+            EXEMPLO 8 - Massa Espiculada Maligna (SPIC M):
+            Laudo: mdb178 G SPIC M 492 600 70
+            Características: Tecido G, massa espiculada (bordas irregulares com espículas), maligna, localizada em (492, 600)
+
+            EXEMPLO 9 - Calcificação Maligna (CALC M):
+            Laudo: mdb209 G CALC M 647 503 87
+            Características: Tecido G, cluster de calcificações, maligna, localizada em (647, 503) com raio 87
+
+            EXEMPLO 10 - Calcificação Benigna (CALC B):
+            Laudo: mdb212 G CALC B 687 882 3
+            Características: Tecido G, cluster pequeno de calcificações (raio 3), benigna, localizada em (687, 882)
+
+            EXEMPLO 11 - Massa Indefinida Benigna (MISC B):
+            Laudo: mdb013 G MISC B 667 365 31
+            Características: Tecido G, massa indefinida (sem contornos regulares), benigna, localizada em (667, 365)
+
+            EXEMPLO 12 - Assimetria Maligna (ASYM M):
+            Laudo: mdb072 G ASYM M 266 517 28
+            Características: Tecido G, assimetria de densidade, maligna, localizada em (266, 517)
+
+            EXEMPLO 13 - Normal (NORM):
+            Laudo: mdb003 D NORM
+            Características: Tecido D, nenhuma anormalidade detectável
+
+            EXEMPLO 14 - Normal (NORM):
+            Laudo: mdb006 F NORM
+            Características: Tecido F, nenhuma anormalidade detectável
+
+            OBSERVAÇÕES IMPORTANTES DOS EXEMPLOS:
+            - CIRC geralmente tem tecido G ou F, raramente D
+            - CIRC geralmente é B (benigna), mas pode ser M
+            - ARCH pode ter tecido G, D ou F
+            - ARCH pode ser B ou M
+            - SPIC geralmente é M (maligna), mas pode ser B
+            - CALC pode ter qualquer tipo de tecido
+            - Coordenadas variam amplamente (100-800 para X e Y)
+            - Raios variam de 3 a 200 pixels, dependendo do tipo
+
+            🧩 Exemplo de saída completa (com anormalidade)
+
+            1. Referência MIAS: {image_id}
+            2. Tipo de tecido de fundo: G (Fatty-glandular)
+            3. Classe de anormalidade: CIRC (Massa circunscrita)
+            4. Severidade da anormalidade: B (Benigna)
+            5. Coordenadas do centro da anormalidade: (x=522, y=280)
+            6. Raio aproximado: 69 pixels
+
+            🧩 Exemplo de saída (sem anormalidade)
+
+            1. Referência MIAS: {image_id}
+            2. Tipo de tecido de fundo: G (Fatty-glandular)
+            3. Classe de anormalidade: NORM
+
+            🧩 Exemplo de saída (calcificações difusas - coordenadas omitidas)
+
+            1. Referência MIAS: {image_id}
+            2. Tipo de tecido de fundo: D (Dense-glandular)
+            3. Classe de anormalidade: CALC (Calcificação)
+            4. Severidade da anormalidade: B (Benigna)
+            (Nota: Coordenadas e raio omitidos porque calcificações estão amplamente distribuídas)
+
+            ⚙️ Regras adicionais de formatação
+
+            - Sempre siga a ordem numérica dos campos (1–6)
+            - Use EXATAMENTE a referência MIAS fornecida: {image_id}
+            - Não invente, altere ou gere novos identificadores
+            - Inclua apenas valores coerentes e observáveis na imagem
+            - Evite descrições narrativas: a saída deve ser estruturada e objetiva
+            - Valide que coordenadas estão entre 0 e 1023
+            - Valide que raio é positivo e razoável (típico: 10-200 pixels)
+            - Para CALC, sempre considere clusters, não calcificações individuais
+            - DIFERENCIE CIRCITICAMENTE: CIRC tem massa definida, ARCH não tem massa definida
+            - Se houver dúvida entre CIRC e ARCH, verifique se há MASSA VISÍVEL:
+            * Se SIM → CIRC
+            * Se NÃO → ARCH
+
+            Analise a imagem de mamografia (referência {image_id}) e descreva os achados conforme o formato MIAS acima, usando os exemplos como referência.
             """
             
             # Carregar e processar a imagem otimizada
             with open(processed_image_path, 'rb') as image_file:
                 image_data = image_file.read()
             
-            # Fazer a análise
+            # Fazer a análise com timeout
+            print("🔄 Enviando requisição para Gemini...")
             response = model.generate_content([prompt, {"mime_type": "image/jpeg", "data": image_data}])
+            
+            if not response or not response.text:
+                raise Exception("Resposta vazia do Gemini")
+            
+            print("✅ Análise Gemini concluída com sucesso")
             
             # Limpar arquivo temporário
             try:
@@ -247,11 +484,12 @@ class AIService:
             return {
                 "success": True,
                 "analysis": response.text,
-                "model": "Gemini 1.5 Flash",
+                "model": "Gemini 2.5 Pro",
                 "error": None
             }
             
         except Exception as e:
+            print(f"❌ Erro na análise Gemini: {str(e)}")
             return {
                 "success": False,
                 "error": f"Erro na análise com Gemini: {str(e)}",
@@ -317,7 +555,7 @@ class AIService:
                     }
                     
                     response = requests.post(
-                        f"https://api-inference.huggingface.co/models/{model}",
+                        f"https://router.huggingface.co/hf-inference/models/{model}",
                         headers=headers,
                         json=payload,
                         timeout=120
@@ -741,190 +979,3 @@ Esta é uma **análise técnica automatizada** baseada em processamento de image
 Esta é uma análise técnica básica. Para diagnóstico médico, consulte um radiologista qualificado.
 """
     
-    def analyze_with_cohere(self, image_path: str) -> Dict[str, Any]:
-        """Análise com Cohere (API gratuita)"""
-        if not self.cohere_api_key:
-            return {
-                "success": False,
-                "error": "Chave da API Cohere não configurada",
-                "analysis": None,
-                "api": "cohere"
-            }
-        
-        try:
-            # Pré-processar imagem
-            processed_image_path = self.preprocess_image(image_path)
-            
-            # Converter imagem para base64
-            with open(processed_image_path, 'rb') as image_file:
-                image_data = image_file.read()
-            
-            image_base64 = base64.b64encode(image_data).decode('utf-8')
-            
-            headers = {
-                "Authorization": f"Bearer {self.cohere_api_key}",
-                "Content-Type": "application/json"
-            }
-            
-            payload = {
-                "model": "command",
-                "message": """
-                Analise esta imagem de mamografia e forneça uma análise técnica detalhada em português brasileiro.
-
-                ESTRUTURA DA ANÁLISE:
-                1. Qualidade técnica da imagem
-                2. Anatomia visível
-                3. Características do tecido mamário
-                4. Aspectos técnicos
-                5. Observações gerais
-
-                IMPORTANTE: Esta é uma análise técnica, não um diagnóstico médico.
-                """,
-                "image": image_base64,
-                "max_tokens": 1000
-            }
-            
-            response = requests.post(
-                "https://api.cohere.ai/v1/chat",
-                headers=headers,
-                json=payload,
-                timeout=60
-            )
-            
-            # Limpar arquivo temporário
-            try:
-                if processed_image_path != image_path:
-                    os.remove(processed_image_path)
-            except:
-                pass
-            
-            if response.status_code == 200:
-                result = response.json()
-                return {
-                    "success": True,
-                    "analysis": result.get("text", "Análise não disponível"),
-                    "api": "cohere",
-                    "model": "Cohere Command",
-                    "error": None
-                }
-            else:
-                return {
-                    "success": False,
-                    "error": f"Erro HTTP {response.status_code}: {response.text}",
-                    "analysis": None,
-                    "api": "cohere"
-                }
-                
-        except Exception as e:
-            return {
-                "success": False,
-                "error": f"Erro na análise com Cohere: {str(e)}",
-                "analysis": None,
-                "api": "cohere"
-            }
-    
-    def analyze_with_anthropic(self, image_path: str) -> Dict[str, Any]:
-        """Análise com Anthropic Claude (API gratuita)"""
-        if not self.anthropic_api_key:
-            return {
-                "success": False,
-                "error": "Chave da API Anthropic não configurada",
-                "analysis": None,
-                "api": "anthropic"
-            }
-        
-        try:
-            # Pré-processar imagem
-            processed_image_path = self.preprocess_image(image_path)
-            
-            # Converter imagem para base64
-            with open(processed_image_path, 'rb') as image_file:
-                image_data = image_file.read()
-            
-            image_base64 = base64.b64encode(image_data).decode('utf-8')
-            
-            headers = {
-                "x-api-key": self.anthropic_api_key,
-                "Content-Type": "application/json",
-                "anthropic-version": "2023-06-01"
-            }
-            
-            payload = {
-                "model": "claude-3-sonnet-20240229",
-                "max_tokens": 1000,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": """
-                                Analise esta imagem de mamografia e forneça uma análise técnica detalhada em português brasileiro.
-
-                                ESTRUTURA:
-                                1. Qualidade técnica da imagem
-                                2. Anatomia visível
-                                3. Características do tecido
-                                4. Aspectos técnicos
-                                5. Observações gerais
-
-                                IMPORTANTE: Análise técnica, não diagnóstico médico.
-                                """
-                            },
-                            {
-                                "type": "image",
-                                "source": {
-                                    "type": "base64",
-                                    "media_type": "image/jpeg",
-                                    "data": image_base64
-                                }
-                            }
-                        ]
-                    }
-                ]
-            }
-            
-            response = requests.post(
-                "https://api.anthropic.com/v1/messages",
-                headers=headers,
-                json=payload,
-                timeout=60
-            )
-            
-            # Limpar arquivo temporário
-            try:
-                if processed_image_path != image_path:
-                    os.remove(processed_image_path)
-            except:
-                pass
-            
-            if response.status_code == 200:
-                result = response.json()
-                
-                analysis_text = ""
-                for content in result.get("content", []):
-                    if content.get("type") == "text":
-                        analysis_text += content.get("text", "")
-                
-                return {
-                    "success": True,
-                    "analysis": analysis_text,
-                    "api": "anthropic",
-                    "model": "Claude 3 Sonnet",
-                    "error": None
-                }
-            else:
-                return {
-                    "success": False,
-                    "error": f"Erro HTTP {response.status_code}: {response.text}",
-                    "analysis": None,
-                    "api": "anthropic"
-                }
-                
-        except Exception as e:
-            return {
-                "success": False,
-                "error": f"Erro na análise com Anthropic: {str(e)}",
-                "analysis": None,
-                "api": "anthropic"
-            }

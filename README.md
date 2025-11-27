@@ -94,6 +94,7 @@ nano Backend/.env  # Adicione suas chaves
 - FastAPI (Python 3.11+)
 - SQLAlchemy ORM
 - OpenCV para processamento de imagem
+- **PyDICOM para suporte a arquivos DICOM**
 - Google Gemini 2.0 Flash
 - Hugging Face Transformers
 
@@ -106,8 +107,11 @@ nano Backend/.env  # Adicione suas chaves
 ## Funcionalidades
 
 ### Análise de Imagens
-- Upload de imagens de mamografia
+- Upload de imagens de mamografia (PNG, JPG, JPEG, DICOM)
+- **Suporte completo a arquivos DICOM** do dataset CBIS-DDSM
 - Processamento automático (redimensionamento, contraste)
+- Conversão automática DICOM → JPEG otimizado
+- Preservação de metadados DICOM
 - Análise híbrida com múltiplas IAs
 - Classificação BI-RADS integrada
 - Priorização visual de achados
@@ -188,6 +192,41 @@ mamografia start
 - `GET /uploads/{filename}` - Servir imagens
 - `GET /docs` - Swagger UI
 
+## Suporte DICOM
+
+### Dataset CBIS-DDSM
+O projeto agora suporta arquivos DICOM do dataset **CBIS-DDSM** (Curated Breast Imaging Subset of DDSM), um dos principais datasets públicos para pesquisa em mamografia.
+
+### Instalação do Suporte DICOM
+```bash
+# Instalar dependências DICOM
+cd Backend
+./install_dicom_support.sh
+
+# Ou manualmente
+pip install pydicom
+```
+
+### Formatos Suportados
+- **DICOM (.dcm)** - Dataset CBIS-DDSM e outros datasets médicos
+- **PNG (.png)** - Imagens padrão
+- **JPEG (.jpg, .jpeg)** - Imagens comprimidas
+
+### Características do Suporte DICOM
+- ✅ **Conversão automática** DICOM → JPEG otimizado
+- ✅ **Preservação de metadados** (Patient ID, Study Date, etc.)
+- ✅ **Windowing automático** para melhor visualização
+- ✅ **Normalização de pixels** para análise de IA
+- ✅ **Validação de integridade** do arquivo DICOM
+
+### Teste com DICOM
+```bash
+# 1. Coloque um arquivo .dcm na pasta Backend/
+# 2. Execute o teste
+cd Backend
+python test_dicom_support.py
+```
+
 ## Testes
 
 ### Backend
@@ -195,6 +234,7 @@ mamografia start
 cd Backend
 python test_api.py
 python test_huggingface_analysis.py
+python test_dicom_support.py  # Teste específico para DICOM
 ```
 
 ### Frontend

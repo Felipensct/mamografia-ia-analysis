@@ -3,7 +3,7 @@
     <!-- Header -->
     <div class="flex items-center justify-between">
       <div>
-        <h2 class="text-xl font-semibold text-gray-900">Análises Realizadas</h2>
+        <h2 class="text-xl font-semibold
         <p class="text-sm text-gray-600 mt-1">
           {{ totalAnalyses }} análises no total
         </p>
@@ -212,6 +212,7 @@
 <script setup lang="ts">
 import apiService from '@/services/api'
 import { useAnalysisStore } from '@/stores/analysis'
+import { formatDate, formatFileSize, getStatusBadgeClass, getStatusText, handleImageError } from '@/utils'
 import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -236,6 +237,11 @@ async function loadMore() {
 }
 
 function viewAnalysis(id: number) {
+  if (!id || isNaN(id) || id <= 0) {
+    console.error('❌ ID de análise inválido para navegação:', id)
+    return
+  }
+  console.log('🔄 Navegando para análise ID:', id)
   router.push(`/analysis/${id}`)
 }
 
@@ -274,54 +280,12 @@ async function confirmDelete(analysis: any) {
 }
 
 function getImageUrl(filename: string): string {
-  return apiService.getImageUrl(filename)
+  const url = apiService.getImageUrl(filename)
+  console.log('🖼️ URL da imagem gerada:', { filename, url })
+  return url
 }
 
-function handleImageError(event: Event) {
-  const img = event.target as HTMLImageElement
-  img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0yNCAyNEg0MFY0MEgyNFYyNFoiIGZpbGw9IiNEMUQ1REIiLz4KPC9zdmc+'
-}
 
-function getStatusBadgeClass(status: string): string {
-  const classes = {
-    uploaded: 'status-badge status-uploaded',
-    processing: 'status-badge status-processing',
-    completed: 'status-badge status-completed',
-    error: 'status-badge status-error'
-  }
-  return classes[status as keyof typeof classes] || 'status-badge status-uploaded'
-}
-
-function getStatusText(status: string): string {
-  const texts = {
-    uploaded: 'Enviado',
-    processing: 'Processando',
-    completed: 'Concluído',
-    error: 'Erro'
-  }
-  return texts[status as keyof typeof texts] || status
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 Bytes'
-  
-  const k = 1024
-  const sizes = ['Bytes', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-}
-
-function formatDate(dateString: string): string {
-  const date = new Date(dateString)
-  return date.toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
 
 // Lifecycle
 onMounted(() => {

@@ -1,59 +1,14 @@
 import { API_CONFIG } from '@/config/api'
+import type {
+  Analysis,
+  AnalysisDetail,
+  AnalysisResponse,
+  UploadResponse
+} from '@/domain/models'
+import { adaptAnalyses, adaptAnalysis, adaptAnalysisResponse, adaptUploadResponse } from '@/utils'
 import axios from 'axios'
 
 const API_BASE_URL = API_CONFIG.BASE_URL
-
-export interface Analysis {
-  id: number
-  filename: string
-  original_filename: string
-  file_size: number
-  upload_date: string
-  processing_date?: string
-  status: 'uploaded' | 'processing' | 'completed' | 'error'
-  is_processed: boolean
-  has_analysis: boolean
-  error_message?: string
-}
-
-export interface AnalysisDetail extends Analysis {
-  info?: {
-    dimensions: [number, number]
-    format: string
-    mode: string
-    is_optimized: boolean
-    was_resized: boolean
-    original_dimensions?: [number, number]
-  }
-  results: {
-    gemini?: string
-    gpt4v?: string
-  }
-}
-
-export interface UploadResponse {
-  message: string
-  analysis_id: number
-  filename: string
-  original_filename: string
-  info: {
-    dimensions: [number, number]
-    format: string
-    mode: string
-    is_optimized: boolean
-  }
-  file_size: number
-  status: string
-}
-
-export interface AnalysisResponse {
-  message: string
-  analysis_id: number
-  filename: string
-  status: string
-  model?: string
-  analysis?: string
-}
 
 class ApiService {
   private api = axios.create({
@@ -113,7 +68,7 @@ class ApiService {
       })
 
       console.log('✅ Upload bem-sucedido:', response.data)
-      return response.data
+      return adaptUploadResponse(response.data)
     } catch (error: any) {
       console.error('❌ Erro no upload:', {
         message: error.message,
@@ -130,31 +85,34 @@ class ApiService {
     const response = await this.api.get('/api/v1/analyses', {
       params: { skip, limit },
     })
-    return response.data
+    return {
+      ...response.data,
+      analyses: adaptAnalyses(response.data.analyses)
+    }
   }
 
   // Obter detalhes de uma análise específica
   async getAnalysis(id: number): Promise<AnalysisDetail> {
     const response = await this.api.get(`/api/v1/analysis/${id}`)
-    return response.data
+    return adaptAnalysis(response.data)
   }
 
   // Analisar imagem com Gemini (fallback para Hugging Face)
   async analyzeImage(id: number): Promise<AnalysisResponse> {
     const response = await this.api.post(`/api/v1/analyze/${id}`)
-    return response.data
+    return adaptAnalysisResponse(response.data)
   }
 
   // Analisar imagem com Hugging Face
   async analyzeImageHF(id: number): Promise<AnalysisResponse> {
     const response = await this.api.post(`/api/v1/analyze-huggingface/${id}`)
-    return response.data
+    return adaptAnalysisResponse(response.data)
   }
 
   // Excluir análise
-  async deleteAnalysis(id: number): Promise<{ message: string; analysis_id: number; filename: string }> {
+  async deleteAnalysis(id: number): Promise<{ message: string; analysisId: number; filename: string }> {
     const response = await this.api.delete(`/api/v1/analysis/${id}`)
-    return response.data
+    return adaptAnalysisResponse(response.data)
   }
 
   // Obter URL da imagem

@@ -28,7 +28,7 @@
       <input
         ref="fileInput"
         type="file"
-        accept="image/*"
+        accept="image/*,.dcm,.pgm"
         @change="handleFileSelect"
         class="hidden"
         :disabled="loading"
@@ -47,10 +47,10 @@
             {{ isDragOver ? 'Solte a imagem aqui' : 'Clique ou arraste uma imagem' }}
           </p>
           <p class="text-sm text-gray-500 mt-1">
-            Formatos suportados: PNG, JPG, JPEG, TIFF, BMP
+            Formatos suportados: PNG, JPG, JPEG, TIFF, BMP, PGM, DICOM (.dcm)
           </p>
           <p class="text-xs text-gray-400 mt-1">
-            Tamanho máximo: 10MB
+            Tamanho máximo: 10MB (imagens) / 50MB (DICOM)
           </p>
         </div>
       </div>
@@ -150,6 +150,7 @@
 <script setup lang="ts">
 import { useAnalysisStore } from '@/stores/analysis'
 import { computed, ref } from 'vue'
+import { formatFileSize, isValidImageFile, isValidFileSize, createImagePreview } from '@/utils'
 
 const analysisStore = useAnalysisStore()
 
@@ -160,13 +161,13 @@ const selectedFile = ref<File | null>(null)
 const isDragOver = ref(false)
 
 // Computed
-const loading = computed(() => analysisStore.loading)
+const loading = computed(() => analysisStore.uploadLoading)
 const uploadProgress = computed(() => analysisStore.uploadProgress)
 const error = computed(() => analysisStore.error)
 
 const imagePreview = computed(() => {
   if (!selectedFile.value) return ''
-  return URL.createObjectURL(selectedFile.value)
+  return createImagePreview(selectedFile.value)
 })
 
 const imageDimensions = computed(() => {
@@ -218,23 +219,22 @@ function selectFile(file: File) {
   analysisStore.clearError()
   
   // Validar tipo de arquivo
-  const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/tiff', 'image/bmp']
-  if (!allowedTypes.includes(file.type)) {
-    analysisStore.error = 'Tipo de arquivo não suportado. Use PNG, JPG, JPEG, TIFF ou BMP'
+  if (!isValidImageFile(file)) {
+    analysisStore.error = 'Tipo de arquivo não suportado. Use PNG, JPG, JPEG, TIFF, BMP, PGM ou DICOM (.dcm)'
     return
   }
 
-  // Validar tamanho (10MB)
-  const maxSize = 10 * 1024 * 1024
-  if (file.size > maxSize) {
-    analysisStore.error = 'Arquivo muito grande. Tamanho máximo: 10MB'
-    return
-  }
-
-  // Validar tamanho mínimo (1KB)
-  const minSize = 1024
-  if (file.size < minSize) {
-    analysisStore.error = 'Arquivo muito pequeno. Tamanho mínimo: 1KB'
+  // Validar tamanho do arquivo
+  if (!isValidFileSize(file)) {
+    const isDicom = file.name.toLowerCase().endsWith('.dcm') || file.type === 'application/dicom'
+    const maxSize = isDicom ? 50 : 10
+    const maxSizeBytes = maxSize * 1024 * 1024
+    
+    if (file.size > maxSizeBytes) {
+      analysisStore.error = `Arquivo muito grande. Tamanho máximo: ${maxSize}MB`
+    } else {
+      analysisStore.error = 'Arquivo muito pequeno. Tamanho mínimo: 1KB'
+    }
     return
   }
 
@@ -270,13 +270,4 @@ async function uploadFile() {
   }
 }
 
-function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 Bytes'
-  
-  const k = 1024
-  const sizes = ['Bytes', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-}
 </script>

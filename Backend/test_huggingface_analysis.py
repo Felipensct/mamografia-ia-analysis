@@ -41,7 +41,7 @@ def test_huggingface_with_medical_context():
     
     try:
         print("\n🔄 Iniciando análise com Hugging Face...")
-        result = ai_service.analyze_with_huggingface(test_image)
+        result = ai_service.analyze_with_alternative_api(test_image)
         
         if result["success"]:
             print("✅ Análise concluída com sucesso!")
@@ -118,7 +118,7 @@ def compare_with_gemini():
             print(gemini_result['analysis'][:300] + "...")
             
             print("\n🔄 Analisando com Hugging Face...")
-            hf_result = ai_service.analyze_with_huggingface(test_image)
+            hf_result = ai_service.analyze_with_alternative_api(test_image)
             
             if hf_result["success"]:
                 print("✅ Análise Hugging Face concluída!")
